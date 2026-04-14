@@ -28,20 +28,36 @@ pub fn init_bridge(
         return Ok(());
     }
 
-    // Resolve bridge path from multiple possible locations
-    // cargo tauri dev runs from src-tauri/, but dist/ is at project root
-    let candidates = [
-        "../dist/bridge/server.js",   // from src-tauri/ (cargo tauri dev)
-        "dist/bridge/server.js",      // from project root
-        "./dist/bridge/server.js",    // explicit current dir
-    ];
+    // Resolve bridge path using absolute path from executable location
+    // cargo tauri dev CWD is src-tauri/, so relative paths break.
+    // We find the project root by looking for package.json.
+    let project_root = {
+        let mut dir = std::env::current_dir().unwrap_or_default();
+        // Walk up until we find package.json (project root marker)
+        for _ in 0..5 {
+            if dir.join("package.json").exists() {
+                break;
+            }
+            if let Some(parent) = dir.parent() {
+                dir = parent.to_path_buf();
+            } else {
+                break;
+            }
+        }
+        dir
+    };
 
-    let bridge_path = candidates.iter()
-        .find(|p| std::path::Path::new(p).exists())
-        .ok_or("Bridge server.js not found. Run 'npm run build' in the project root first.")?;
+    let bridge_path = project_root.join("dist/bridge/server.js");
+    if !bridge_path.exists() {
+        return Err(format!(
+            "Bridge not found at {}. Run 'npm run build' in project root.",
+            bridge_path.display()
+        ));
+    }
 
     let mut cmd = Command::new("node");
-    cmd.arg(*bridge_path)
+    cmd.arg(&bridge_path)
+        .current_dir(&project_root) // Set CWD to project root
         .env("SHOGUN_DATA_DIR", data_dir)
         .env("SHOGUN_PII_REMOVAL", if pii_removal { "true" } else { "false" })
         .env("SHOGUN_LOG_LEVEL", "warn")
