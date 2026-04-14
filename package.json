@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
-    "start:mcp": "node dist/mcp/server.js"
+    "start:mcp": "node dist/mcp/server.js",
+    "start:bridge": "node dist/bridge/server.js"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",
