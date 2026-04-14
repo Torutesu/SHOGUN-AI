@@ -129,6 +129,9 @@ async function main() {
   });
 }
 
+// Module-level singleton for chat engine (avoids globalThis pollution)
+let chatEngineInstance: InstanceType<typeof import("../chat/engine.js").ChatEngine> | null = null;
+
 async function dispatch(
   brain: ShogunBrain,
   piiFilter: PIIFilter,
@@ -296,7 +299,7 @@ async function dispatch(
     case "import_brain": {
       const { BrainExporter } = await import("../integrations/export.js");
       const exporter = new BrainExporter(brain);
-      return exporter.importAll(params.data as any);
+      return exporter.importAll(params.data as Parameters<typeof exporter.importAll>[0]);
     }
 
     case "ingest_slack": {
@@ -375,12 +378,11 @@ async function dispatch(
       if (!router) throw new Error("No LLM configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
 
       const { ChatEngine } = await import("../chat/engine.js");
-      // Use a singleton chat engine per bridge session
-      if (!(globalThis as any).__shogunChat) {
-        (globalThis as any).__shogunChat = new ChatEngine(brain, router);
+      // Singleton chat engine per bridge session
+      if (!chatEngineInstance) {
+        chatEngineInstance = new ChatEngine(brain, router);
       }
-      const chatEngine = (globalThis as any).__shogunChat as InstanceType<typeof ChatEngine>;
-      return chatEngine.chat(message);
+      return chatEngineInstance.chat(message);
     }
 
     case "start_ocr_capture": {
@@ -414,7 +416,7 @@ async function dispatch(
       const { AudioCaptureEngine } = await import("../capture/audio.js");
       const audioEngine = new AudioCaptureEngine({
         piiFilter,
-        whisperModel: (params.model as any) ?? "base",
+        whisperModel: (params.model as "tiny" | "base" | "small" | "medium") ?? "base",
         onTranscript: async (segments, meetingApp) => {
           const date = new Date().toISOString().slice(0, 10);
           const time = new Date().toISOString().slice(11, 16);

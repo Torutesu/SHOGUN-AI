@@ -178,7 +178,7 @@ export class ActionEngine {
         const results = await ctx.brain.searchPipeline.query({
           query,
           limit: Number(step.params.limit ?? 5),
-          type_filter: step.params.type_filter as any,
+          type_filter: step.params.type_filter as ("person" | "company" | "session" | "concept")[] | undefined,
         });
         return results.map((r) => `[${r.page.title}] ${r.page.compiled_truth.slice(0, 300)}`).join("\n\n");
       }
@@ -200,7 +200,7 @@ export class ActionEngine {
         const slug = `${step.params.slug_prefix ?? "auto"}/${date}`;
         await ctx.brain.pages.putPage({
           slug,
-          type: (step.params.type as any) ?? "session",
+          type: (step.params.type as "person" | "company" | "session" | "concept") ?? "session",
           title: `Auto: ${date}`,
           compiled_truth: previousOutput,
         });
