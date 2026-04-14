@@ -8,3 +8,8 @@ pgdata/
 *.db
 .DS_Store
 coverage/
+
+# Tauri
+src-tauri/target/
+ui/dist/
+ui/node_modules/

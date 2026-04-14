@@ -1,0 +1,56 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-shogun-navy text-shogun-text font-sans antialiased;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+  }
+
+  /* Custom scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    @apply bg-shogun-navy;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply bg-shogun-ocean rounded-full;
+  }
+}
+
+@layer components {
+  .btn-primary {
+    @apply bg-shogun-red hover:bg-shogun-red-light text-white font-semibold
+           py-3 px-6 rounded-lg transition-colors duration-200
+           focus:outline-none focus:ring-2 focus:ring-shogun-red/50;
+  }
+
+  .btn-secondary {
+    @apply bg-shogun-ocean hover:bg-shogun-ocean/80 text-shogun-text font-medium
+           py-2 px-4 rounded-lg transition-colors duration-200
+           border border-white/10;
+  }
+
+  .input-field {
+    @apply bg-shogun-ocean border border-white/10 rounded-lg
+           px-4 py-3 text-shogun-text placeholder-shogun-muted
+           focus:outline-none focus:ring-2 focus:ring-shogun-red/50 focus:border-shogun-red
+           w-full transition-all duration-200;
+  }
+
+  .card {
+    @apply bg-shogun-navy-light border border-white/10 rounded-xl p-6;
+  }
+
+  .sidebar-link {
+    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-shogun-muted
+           hover:text-shogun-text hover:bg-white/5 transition-colors duration-200;
+  }
+
+  .sidebar-link-active {
+    @apply text-shogun-text bg-white/10;
+  }
+}
