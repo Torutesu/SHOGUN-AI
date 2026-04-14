@@ -25,8 +25,20 @@ export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup, Japanese
 export { DreamCycle, scheduleDreamCycle, EntityExtractor, MemoryConsolidator } from "./dream/index.js";
 
 // Capture
-export { PassiveCaptureEngine } from "./capture/index.js";
-export type { CaptureEvent, PassiveCaptureOptions } from "./capture/index.js";
+export { PassiveCaptureEngine, OCRCaptureEngine, AudioCaptureEngine } from "./capture/index.js";
+export type { CaptureEvent, PassiveCaptureOptions, OCRResult, TranscriptSegment } from "./capture/index.js";
+
+// Chat
+export { ChatEngine } from "./chat/index.js";
+export type { ChatMessage, ChatOptions } from "./chat/index.js";
+
+// Actions
+export { ActionEngine, BUILTIN_ACTIONS } from "./actions/index.js";
+export type { Action, ActionTrigger, ActionStep } from "./actions/index.js";
+
+// Billing
+export { StripeBilling } from "./billing/index.js";
+export type { SubscriptionStatus, StripeBillingOptions } from "./billing/index.js";
 
 // Security
 export {

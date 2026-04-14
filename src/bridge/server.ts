@@ -367,6 +367,93 @@ async function dispatch(
       return { started: true };
     }
 
+    case "chat": {
+      const message = String(params.message ?? "");
+      if (!message) throw new Error("message required");
+
+      const router = brain.getLLMRouter();
+      if (!router) throw new Error("No LLM configured. Add OPENAI_API_KEY or ANTHROPIC_API_KEY.");
+
+      const { ChatEngine } = await import("../chat/engine.js");
+      // Use a singleton chat engine per bridge session
+      if (!(globalThis as any).__shogunChat) {
+        (globalThis as any).__shogunChat = new ChatEngine(brain, router);
+      }
+      const chatEngine = (globalThis as any).__shogunChat as InstanceType<typeof ChatEngine>;
+      return chatEngine.chat(message);
+    }
+
+    case "start_ocr_capture": {
+      const { OCRCaptureEngine } = await import("../capture/ocr.js");
+      const ocrEngine = new OCRCaptureEngine({
+        intervalMs: Number(params.interval_ms ?? 2000),
+        piiFilter,
+        onCapture: async (result) => {
+          const date = result.timestamp.toISOString().slice(0, 10);
+          const slug = `sessions/${date}`;
+          let page = await brain.pages.getPage(slug);
+          if (!page) {
+            page = await brain.pages.putPage({
+              slug, type: "session",
+              title: `Session ${date}`,
+              compiled_truth: "Daily activity log.",
+            });
+          }
+          await brain.timeline.addEntry(
+            page.id, date,
+            `[${result.source}] [${result.appName}] ${result.text.slice(0, 2000)}`,
+            "ocr_capture"
+          );
+        },
+      });
+      await ocrEngine.start();
+      return { started: true };
+    }
+
+    case "start_audio_capture": {
+      const { AudioCaptureEngine } = await import("../capture/audio.js");
+      const audioEngine = new AudioCaptureEngine({
+        piiFilter,
+        whisperModel: (params.model as any) ?? "base",
+        onTranscript: async (segments, meetingApp) => {
+          const date = new Date().toISOString().slice(0, 10);
+          const time = new Date().toISOString().slice(11, 16);
+          const slug = `sessions/${date}-meeting-${time.replace(":", "")}`;
+
+          const transcript = segments.map((s) => s.text).join(" ");
+          let page = await brain.pages.getPage(slug);
+          if (!page) {
+            page = await brain.pages.putPage({
+              slug, type: "session",
+              title: `${meetingApp} Meeting — ${date} ${time}`,
+              compiled_truth: transcript,
+              frontmatter: { source: "audio_capture", app: meetingApp },
+            });
+            await brain.tags.addTag(page.id, "meeting");
+            await brain.tags.addTag(page.id, meetingApp.toLowerCase().replace(/\s+/g, "-"));
+          } else {
+            // Append transcript to existing page
+            await brain.pages.putPage({
+              slug, type: "session",
+              title: page.title,
+              compiled_truth: page.compiled_truth + "\n" + transcript,
+            });
+          }
+
+          // Add timeline entry for each segment
+          for (const seg of segments) {
+            await brain.timeline.addEntry(
+              page.id, date,
+              seg.text,
+              `${meetingApp} (${seg.start.toFixed(0)}s-${seg.end.toFixed(0)}s)`
+            );
+          }
+        },
+      });
+      audioEngine.start();
+      return { started: true };
+    }
+
     default:
       throw new Error(`Unknown method: ${method}`);
   }

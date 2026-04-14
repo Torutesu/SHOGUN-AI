@@ -111,6 +111,9 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
     export_brain: { version: 1, pages: [], links: [] },
     import_brain: { imported: 0, skipped: 0, links_created: 0 },
     start_capture: { started: true },
+    chat: { content: "Based on your memory, here is what I found...", citations: [{ slug: "people/demo-user", title: "Demo User", snippet: "A demo user for testing." }] },
+    start_ocr_capture: { started: true },
+    start_audio_capture: { started: true },
     load_settings: {
       openai_api_key: null,
       anthropic_api_key: null,
@@ -151,6 +154,9 @@ export const api = {
   importBrain: (data: unknown) => invoke<unknown>("import_brain", { data }),
   startCapture: (intervalMs?: number) =>
     invoke<unknown>("start_capture", { interval_ms: intervalMs }),
+  chat: (message: string) => invoke<unknown>("chat", { message }),
+  startOCRCapture: () => invoke<unknown>("start_ocr_capture"),
+  startAudioCapture: () => invoke<unknown>("start_audio_capture"),
   saveSettings: (settings: AppSettings) =>
     invoke<void>("save_settings", { settings }),
   loadSettings: () => invoke<AppSettings>("load_settings"),
