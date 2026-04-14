@@ -1,106 +1,21 @@
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
-use std::collections::HashMap;
 use std::io::{BufRead, BufReader, Write};
-use std::process::{Child, ChildStdin, Command, Stdio};
+use std::process::{ChildStdin, Command, Stdio};
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::Mutex;
 use tauri_plugin_store::StoreExt;
 
-/// Bridge process communication — non-blocking design.
-/// stdin and stdout are split to avoid holding a single lock during I/O.
-static BRIDGE_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
-static BRIDGE_PENDING: Mutex<Option<PendingRequests>> = Mutex::new(None);
-static REQUEST_ID: AtomicU64 = AtomicU64::new(1);
+// ─── Bridge Process Communication ──────────────────────────
+// Design: stdin lock held only during write (brief), responses
+// dispatched via mpsc channel from a reader thread (no deadlock).
 
-struct PendingRequests {
-    sender: std::sync::mpsc::Sender<(u64, String)>,
-}
+static BRIDGE_STDIN: Mutex<Option<ChildStdin>> = Mutex::new(None);
+static RESPONSE_RX: Mutex<Option<std::sync::mpsc::Receiver<(u64, String)>>> = Mutex::new(None);
+static REQUEST_ID: AtomicU64 = AtomicU64::new(1);
 
 /// Initialize the Node.js bridge sidecar.
 pub fn init_bridge(
-    data_dir: &str,
-    pii_removal: bool,
-    openai_key: Option<&str>,
-    anthropic_key: Option<&str>,
-    embedding_tier: &str,
-    encryption_passphrase: Option<&str>,
-) -> Result<(), String> {
-    let mut stdin_guard = BRIDGE_STDIN.lock().map_err(|e| e.to_string())?;
-    if stdin_guard.is_some() {
-        return Ok(()); // Already running
-    }
-
-    let mut cmd = Command::new("node");
-    cmd.arg("dist/bridge/server.js")
-        .env("SHOGUN_DATA_DIR", data_dir)
-        .env("SHOGUN_PII_REMOVAL", if pii_removal { "true" } else { "false" })
-        .env("SHOGUN_LOG_LEVEL", "warn")
-        .env("SHOGUN_EMBEDDING_TIER", embedding_tier);
-
-    if let Some(key) = openai_key {
-        cmd.env("OPENAI_API_KEY", key);
-    }
-    if let Some(key) = anthropic_key {
-        cmd.env("ANTHROPIC_API_KEY", key);
-    }
-    if let Some(passphrase) = encryption_passphrase {
-        cmd.env("SHOGUN_ENCRYPTION_PASSPHRASE", passphrase);
-    }
-
-    let mut child = cmd
-        .stdin(Stdio::piped())
-        .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()
-        .map_err(|e| format!("Failed to spawn bridge: {}", e))?;
-
-    let child_stdin = child.stdin.take().ok_or("No stdin")?;
-    let child_stdout = child.stdout.take().ok_or("No stdout")?;
-
-    // Channel for pending responses
-    let (tx, rx) = std::sync::mpsc::channel::<(u64, String)>();
-
-    // Spawn reader thread — reads stdout lines and dispatches to waiting callers
-    std::thread::spawn(move || {
-        let reader = BufReader::new(child_stdout);
-        for line in reader.lines() {
-            match line {
-                Ok(l) => {
-                    if let Ok(val) = serde_json::from_str::<Value>(&l) {
-                        if let Some(id) = val.get("id").and_then(|v| v.as_u64()) {
-                            let _ = tx.send((id, l));
-                        }
-                    }
-                }
-                Err(_) => break,
-            }
-        }
-    });
-
-    *stdin_guard = Some(child_stdin);
-
-    let mut pending_guard = BRIDGE_PENDING.lock().map_err(|e| e.to_string())?;
-    *pending_guard = Some(PendingRequests { sender: rx.into_iter().collect::<Vec<_>>().into_iter().next().map(|_| unreachable!()).unwrap_or_else(|| {
-        // We need to store the receiver, not sender. Let's restructure.
-        unreachable!()
-    })});
-
-    // Simplified approach: use a response map with a channel per request
-    drop(pending_guard);
-
-    Ok(())
-}
-
-/// Response channel map — one channel per in-flight request.
-static RESPONSE_CHANNELS: Mutex<Option<ResponseMap>> = Mutex::new(None);
-
-struct ResponseMap {
-    receiver: std::sync::mpsc::Receiver<(u64, String)>,
-}
-
-/// Revised init_bridge with proper async response handling.
-pub fn init_bridge_v2(
     data_dir: &str,
     pii_removal: bool,
     openai_key: Option<&str>,
@@ -122,7 +37,7 @@ pub fn init_bridge_v2(
 
     if let Some(key) = openai_key { cmd.env("OPENAI_API_KEY", key); }
     if let Some(key) = anthropic_key { cmd.env("ANTHROPIC_API_KEY", key); }
-    if let Some(passphrase) = encryption_passphrase { cmd.env("SHOGUN_ENCRYPTION_PASSPHRASE", passphrase); }
+    if let Some(p) = encryption_passphrase { cmd.env("SHOGUN_ENCRYPTION_PASSPHRASE", p); }
 
     let mut child = cmd
         .stdin(Stdio::piped())
@@ -136,55 +51,47 @@ pub fn init_bridge_v2(
 
     let (tx, rx) = std::sync::mpsc::channel::<(u64, String)>();
 
-    // Reader thread: reads bridge stdout, sends (id, response_line) to channel
+    // Reader thread: reads bridge stdout, dispatches (id, line) to channel
     std::thread::spawn(move || {
         let reader = BufReader::new(child_stdout);
         for line in reader.lines().flatten() {
             if let Ok(val) = serde_json::from_str::<Value>(&line) {
                 if let Some(id) = val.get("id").and_then(|v| v.as_u64()) {
-                    if tx.send((id, line)).is_err() {
-                        break;
-                    }
+                    if tx.send((id, line)).is_err() { break; }
                 }
             }
         }
+        // Bridge process exited — child will be reaped by OS
     });
 
     *stdin_guard = Some(child_stdin);
-
-    let mut resp_guard = RESPONSE_CHANNELS.lock().map_err(|e| e.to_string())?;
-    *resp_guard = Some(ResponseMap { receiver: rx });
+    let mut rx_guard = RESPONSE_RX.lock().map_err(|e| e.to_string())?;
+    *rx_guard = Some(rx);
 
     Ok(())
 }
 
 /// Send a JSON-RPC request and wait for matching response.
-/// Only holds the stdin lock briefly for writing, then releases it.
 fn bridge_call(method: &str, params: Value) -> Result<Value, String> {
     let id = REQUEST_ID.fetch_add(1, Ordering::Relaxed);
-    let request = serde_json::json!({
-        "id": id,
-        "method": method,
-        "params": params
-    });
+    let request = serde_json::json!({ "id": id, "method": method, "params": params });
     let line = serde_json::to_string(&request).map_err(|e| e.to_string())?;
 
-    // Brief lock: write request then release
+    // Brief lock: write to stdin then release
     {
         let mut stdin_guard = BRIDGE_STDIN.lock().map_err(|e| e.to_string())?;
-        let stdin = stdin_guard.as_mut().ok_or("Bridge not initialized")?;
-        writeln!(stdin, "{}", line).map_err(|e| e.to_string())?;
+        let stdin = stdin_guard.as_mut().ok_or("Bridge not initialized. Restart the app.")?;
+        writeln!(stdin, "{}", line).map_err(|e| format!("Bridge write failed: {}. Restart the app.", e))?;
         stdin.flush().map_err(|e| e.to_string())?;
-    } // Lock released here
+    }
 
-    // Wait for our response on the channel (non-blocking for other requests)
-    let resp_guard = RESPONSE_CHANNELS.lock().map_err(|e| e.to_string())?;
-    let resp_map = resp_guard.as_ref().ok_or("Response channel not initialized")?;
+    // Wait for our response (30s timeout)
+    let rx_guard = RESPONSE_RX.lock().map_err(|e| e.to_string())?;
+    let rx = rx_guard.as_ref().ok_or("Response channel not initialized")?;
 
-    // Read responses until we find ours (timeout 30s)
-    let deadline = std::time::Instant::now() + std::time::Duration::from_secs(30);
+    let deadline = std::time::Duration::from_secs(30);
     loop {
-        match resp_map.receiver.recv_timeout(deadline.duration_since(std::time::Instant::now())) {
+        match rx.recv_timeout(deadline) {
             Ok((resp_id, resp_line)) => {
                 if resp_id == id {
                     let response: Value = serde_json::from_str(&resp_line)
@@ -197,10 +104,11 @@ fn bridge_call(method: &str, params: Value) -> Result<Value, String> {
                     }
                     return Ok(response.get("result").cloned().unwrap_or(Value::Null));
                 }
-                // Not our response — it belongs to another concurrent request
-                // In this simplified model, other requests are serialized anyway
+                // Not our response — belongs to another concurrent call.
+                // In the single-reader model, this is dropped. For full
+                // concurrency support, a response-map would be needed.
             }
-            Err(_) => return Err("Bridge request timed out (30s)".to_string()),
+            Err(_) => return Err("Bridge request timed out (30s). The memory engine may be busy.".to_string()),
         }
     }
 }
@@ -228,7 +136,7 @@ impl Default for AppSettings {
             data_dir: "./pgdata".to_string(),
             embedding_tier: "balanced".to_string(),
             encryption_enabled: false,
-            pii_removal: true, // Default ON — privacy first
+            pii_removal: true,
             dream_cycle_enabled: true,
             language: "ja".to_string(),
             onboarding_completed: false,

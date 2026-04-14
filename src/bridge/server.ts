@@ -103,6 +103,17 @@ async function main() {
     await brain.close();
     process.exit(0);
   });
+
+  // Graceful shutdown on SIGTERM (sent by Tauri when app closes)
+  process.on("SIGTERM", async () => {
+    await brain.close();
+    process.exit(0);
+  });
+
+  process.on("SIGINT", async () => {
+    await brain.close();
+    process.exit(0);
+  });
 }
 
 async function dispatch(

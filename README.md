@@ -9,7 +9,7 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.7-blue?logo=typescript)](https://www.typescriptlang.org/)
 [![PGLite](https://img.shields.io/badge/PGLite-WASM-green)](https://pglite.dev/)
 [![License](https://img.shields.io/badge/License-Proprietary-red)]()
-[![Tests](https://img.shields.io/badge/Tests-38%20passing-brightgreen)]()
+[![Tests](https://img.shields.io/badge/Tests-101%20passing-brightgreen)]()
 
 </div>
 

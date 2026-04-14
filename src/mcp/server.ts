@@ -80,7 +80,7 @@ export async function startMCPServer() {
   const rawDataDir = process.env.SHOGUN_DATA_DIR ?? "./pgdata";
   const dataDir = sanitizeDataDir(rawDataDir);
   const openaiApiKey = process.env.OPENAI_API_KEY;
-  const piiEnabled = process.env.SHOGUN_PII_REMOVAL === "true";
+  const piiEnabled = process.env.SHOGUN_PII_REMOVAL !== "false"; // Default ON — privacy first
 
   // Validate API key format if provided
   if (openaiApiKey && !openaiApiKey.startsWith("sk-")) {
