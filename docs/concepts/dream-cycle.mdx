@@ -1,0 +1,48 @@
+---
+title: Dream Cycle
+description: "Nightly batch processing that keeps your memory fresh and connected."
+---
+
+## Overview / 概要
+
+The **Dream Cycle** is SHOGUN's nightly batch process that runs at 00:00 JST daily. It maintains memory quality by syncing, embedding, and health-checking your brain.
+
+**Dream Cycle**はSHOGUNの夜間バッチ処理で、毎日JST 00:00に実行されます。同期・埋め込み・ヘルスチェックによりメモリ品質を維持します。
+
+## Steps / ステップ
+
+| Step | Name | Description |
+|---|---|---|
+| 1 | **Sync** | Re-chunk pages with stale content / 古いコンテンツのページを再チャンク |
+| 2 | **Embed** | Process pages missing embeddings / 埋め込み未処理ページの処理 |
+| 3 | **Entity Sweep** | Detect new entities from timeline / タイムラインから新エンティティを検出 |
+| 4 | **Citation Fix** | Repair dead internal links / 死んだ内部リンクの修復 |
+| 5 | **Consolidation** | Merge duplicate pages / 重複ページのマージ |
+| 6 | **Health Check** | Coverage, stale, orphan report / カバレッジ・stale・orphanレポート |
+
+## Manual Execution / 手動実行
+
+```typescript
+// Via API
+const result = await brain.runDreamCycle();
+console.log(result);
+// { synced: 5, skipped: 95, health: { embed_coverage: 0.98, ... } }
+```
+
+Via MCP tool:
+```
+Use the dream_cycle tool to run the Dream Cycle manually.
+```
+
+## Health Report / ヘルスレポート
+
+```typescript
+const health = await brain.getHealth();
+// {
+//   embed_coverage: 0.95,     // 95% of chunks have embeddings
+//   stale_pages: 3,           // Pages without chunks
+//   orphan_pages: 7,          // Pages with no links
+//   broken_links: 0,          // Dead links
+//   last_dream_cycle: "2026-04-14T15:00:00Z"
+// }
+```

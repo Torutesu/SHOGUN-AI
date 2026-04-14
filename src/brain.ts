@@ -5,11 +5,13 @@ import { LinkStore } from "./memory/links.js";
 import { TagStore } from "./memory/tags.js";
 import { SearchPipeline } from "./search/pipeline.js";
 import { recursiveChunk } from "./chunking/recursive.js";
+import { logger } from "./logger.js";
 import type { BrainStats, EmbeddingProvider, HealthReport, PageType } from "./types.js";
 
 export interface ShogunBrainOptions {
   dataDir?: string;
   embeddingProvider?: EmbeddingProvider;
+  syncConcurrency?: number;
 }
 
 export class ShogunBrain {
@@ -20,6 +22,7 @@ export class ShogunBrain {
   readonly tags: TagStore;
   readonly searchPipeline: SearchPipeline;
   private embeddingProvider: EmbeddingProvider | undefined;
+  private syncConcurrency: number;
 
   constructor(options: ShogunBrainOptions = {}) {
     this.engine = new PostgresEngine({ dataDir: options.dataDir });
@@ -28,6 +31,7 @@ export class ShogunBrain {
     this.links = new LinkStore(this.engine);
     this.tags = new TagStore(this.engine);
     this.embeddingProvider = options.embeddingProvider;
+    this.syncConcurrency = options.syncConcurrency ?? 5;
     this.searchPipeline = new SearchPipeline({
       engine: this.engine,
       embeddingProvider: options.embeddingProvider,
@@ -63,7 +67,7 @@ export class ShogunBrain {
     const vectorSearch = this.searchPipeline.getVectorSearch();
 
     if (vectorSearch) {
-      // Index with embeddings
+      // Index with embeddings (batch optimized)
       if (truthChunks.length > 0) {
         await vectorSearch.indexPage(pageId, truthChunks, "compiled_truth");
       }
@@ -71,25 +75,31 @@ export class ShogunBrain {
         await vectorSearch.indexPage(pageId, timelineChunks, "timeline");
       }
     } else {
-      // Store chunks without embeddings (for keyword search)
+      // Store chunks without embeddings — batch INSERT
       await this.engine.query(
         "DELETE FROM content_chunks WHERE page_id = $1",
         [pageId]
       );
 
-      for (let i = 0; i < truthChunks.length; i++) {
-        await this.engine.query(
-          `INSERT INTO content_chunks (page_id, chunk_text, chunk_source, chunk_index)
-           VALUES ($1, $2, 'compiled_truth', $3)`,
-          [pageId, truthChunks[i], i]
-        );
-      }
+      const allChunks = [
+        ...truthChunks.map((text, i) => ({ text, source: "compiled_truth" as const, index: i })),
+        ...timelineChunks.map((text, i) => ({ text, source: "timeline" as const, index: i })),
+      ];
 
-      for (let i = 0; i < timelineChunks.length; i++) {
+      if (allChunks.length > 0) {
+        const values: string[] = [];
+        const params: unknown[] = [];
+        let paramIdx = 1;
+
+        for (const chunk of allChunks) {
+          values.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}, $${paramIdx++})`);
+          params.push(pageId, chunk.text, chunk.source, chunk.index);
+        }
+
         await this.engine.query(
           `INSERT INTO content_chunks (page_id, chunk_text, chunk_source, chunk_index)
-           VALUES ($1, $2, 'timeline', $3)`,
-          [pageId, timelineChunks[i], i]
+           VALUES ${values.join(", ")}`,
+          params
         );
       }
     }
@@ -100,24 +110,55 @@ export class ShogunBrain {
     let synced = 0;
     let skipped = 0;
 
-    for (const page of pages) {
+    // Process pages with concurrency pool
+    const queue = [...pages];
+    const inFlight: Promise<void>[] = [];
+
+    const processPage = async (page: { id: number; slug: string }) => {
       if (!force) {
-        // Check if page has already been chunked
         const chunks = await this.engine.query<{ count: number }>(
           "SELECT COUNT(*)::int as count FROM content_chunks WHERE page_id = $1",
           [page.id]
         );
         if (chunks[0]?.count > 0) {
           skipped++;
-          continue;
+          return;
         }
       }
 
-      await this.rechunkPage(page.id);
-      synced++;
+      try {
+        await this.rechunkPage(page.id);
+        synced++;
+      } catch (error: unknown) {
+        const err = error as Error;
+        logger.error(`Failed to sync page ${page.slug}: ${err.message}`);
+        // Continue with other pages — don't abort entire sync
+      }
+    };
+
+    while (queue.length > 0 || inFlight.length > 0) {
+      while (inFlight.length < this.syncConcurrency && queue.length > 0) {
+        const page = queue.shift()!;
+        const promise = processPage(page).then(() => {
+          inFlight.splice(inFlight.indexOf(promise), 1);
+        });
+        inFlight.push(promise);
+      }
+
+      if (inFlight.length > 0) {
+        await Promise.race(inFlight);
+      }
     }
 
+    logger.info(`Sync complete: ${synced} synced, ${skipped} skipped`);
     return { synced, skipped };
+  }
+
+  async logIngest(source: string, slug: string, action: "created" | "updated" | "skipped", contentHash: string): Promise<void> {
+    await this.engine.query(
+      `INSERT INTO ingest_log (source, slug, action, content_hash) VALUES ($1, $2, $3, $4)`,
+      [source, slug, action, contentHash]
+    );
   }
 
   async getStats(): Promise<BrainStats> {
@@ -184,15 +225,18 @@ export class ShogunBrain {
        WHERE NOT EXISTS (SELECT 1 FROM links l WHERE l.from_page_id = p.id OR l.to_page_id = p.id)`
     );
 
-    // Broken links: links where either page doesn't exist (shouldn't happen with FK, but just in case)
-    const brokenLinks = 0;
+    // Last dream cycle
+    const lastCycle = await this.engine.queryOne<{ completed_at: Date }>(
+      `SELECT completed_at FROM dream_cycle_log
+       WHERE status = 'completed' ORDER BY completed_at DESC LIMIT 1`
+    ).catch(() => null);
 
     return {
       embed_coverage: embedCoverage,
       stale_pages: stalePages?.count ?? 0,
       orphan_pages: orphanPages?.count ?? 0,
-      broken_links: brokenLinks,
-      last_dream_cycle: null,
+      broken_links: 0,
+      last_dream_cycle: lastCycle?.completed_at ?? null,
     };
   }
 
@@ -201,15 +245,55 @@ export class ShogunBrain {
     skipped: number;
     health: HealthReport;
   }> {
-    // Step 1-2: Sync and embed stale pages
-    const syncResult = await this.syncAll(false);
+    logger.info("Dream Cycle starting");
+    const startedAt = new Date();
 
-    // Step 3-6: Health check
-    const health = await this.getHealth();
+    // Log dream cycle start
+    const logEntry = await this.engine.queryOne<{ id: number }>(
+      `INSERT INTO dream_cycle_log (started_at, status) VALUES ($1, 'running') RETURNING id`,
+      [startedAt]
+    ).catch(() => null);
 
-    return {
-      ...syncResult,
-      health,
-    };
+    try {
+      // Step 1-2: Sync and embed stale pages
+      const syncResult = await this.syncAll(false);
+
+      // Step 3-6: Health check
+      const health = await this.getHealth();
+
+      // Update log entry
+      if (logEntry) {
+        await this.engine.query(
+          `UPDATE dream_cycle_log SET
+             completed_at = NOW(),
+             synced = $2, skipped = $3,
+             health_report = $4, status = 'completed'
+           WHERE id = $1`,
+          [logEntry.id, syncResult.synced, syncResult.skipped, JSON.stringify(health)]
+        ).catch(() => {});
+      }
+
+      logger.info("Dream Cycle completed", {
+        synced: syncResult.synced,
+        skipped: syncResult.skipped,
+      });
+
+      return {
+        ...syncResult,
+        health,
+      };
+    } catch (error: unknown) {
+      const err = error as Error;
+      logger.error(`Dream Cycle failed: ${err.message}`);
+
+      if (logEntry) {
+        await this.engine.query(
+          `UPDATE dream_cycle_log SET status = 'failed', error = $2 WHERE id = $1`,
+          [logEntry.id, err.message]
+        ).catch(() => {});
+      }
+
+      throw error;
+    }
   }
 }

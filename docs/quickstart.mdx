@@ -1,0 +1,113 @@
+---
+title: Quick Start
+description: "Get SHOGUN Memory Layer running in 5 minutes."
+---
+
+## Prerequisites / 前提条件
+
+- Node.js 20+
+- npm 10+
+- (Optional) OpenAI API key for vector search
+
+## Step 1: Install / インストール
+
+<CodeGroup>
+```bash npm
+git clone https://github.com/torutesu/shogun-ai.git
+cd shogun-ai
+npm install
+```
+</CodeGroup>
+
+## Step 2: Build / ビルド
+
+```bash
+npm run build
+```
+
+## Step 3: Configure / 設定
+
+Create a `.env` file in the project root:
+プロジェクトルートに `.env` ファイルを作成:
+
+```bash
+cp .env.example .env
+```
+
+Edit the `.env` file:
+
+```env
+# Required for vector search (optional — keyword search works without it)
+OPENAI_API_KEY=sk-your-key-here
+
+# Data directory (default: in-memory)
+SHOGUN_DATA_DIR=./pgdata
+
+# Log level (debug | info | warn | error)
+SHOGUN_LOG_LEVEL=info
+```
+
+## Step 4: Start MCP Server / MCPサーバー起動
+
+```bash
+npm run start:mcp
+```
+
+## Step 5: Connect to Claude Desktop / Claude Desktop連携
+
+Add to your `claude_desktop_config.json`:
+
+```json
+{
+  "mcpServers": {
+    "shogun-memory": {
+      "command": "node",
+      "args": ["/path/to/shogun-ai/dist/mcp/server.js"],
+      "env": {
+        "OPENAI_API_KEY": "sk-your-key-here",
+        "SHOGUN_DATA_DIR": "/path/to/shogun-ai/pgdata"
+      }
+    }
+  }
+}
+```
+
+## Step 6: Test / テスト
+
+In Claude Desktop, try:
+
+```
+Create a memory about yourself using the put_page tool:
+- slug: "people/your-name"
+- type: "person"
+- title: "Your Name"
+- compiled_truth: "A brief description of yourself."
+```
+
+Then search for it:
+
+```
+Search my memory for "your-name"
+```
+
+<Check>
+  If you see your page in the search results, SHOGUN is working correctly.
+  検索結果にページが表示されれば、SHOGUNは正常に動作しています。
+</Check>
+
+## Next Steps / 次のステップ
+
+<CardGroup cols={2}>
+  <Card title="Concepts" icon="book" href="/concepts/pages">
+    Learn about Pages, Timeline, and Links.
+  </Card>
+  <Card title="MCP Tools" icon="wrench" href="/mcp-tools/overview">
+    Explore all 21 MCP tools.
+  </Card>
+  <Card title="Cost Optimization" icon="coins" href="/concepts/cost-optimization">
+    Reduce API costs by 70-90%.
+  </Card>
+  <Card title="Dream Cycle" icon="moon" href="/concepts/dream-cycle">
+    Set up nightly batch processing.
+  </Card>
+</CardGroup>

@@ -1,0 +1,98 @@
+{
+  "$schema": "https://mintlify.com/schema.json",
+  "name": "SHOGUN Memory Layer",
+  "logo": {
+    "dark": "/images/logo-dark.svg",
+    "light": "/images/logo-light.svg"
+  },
+  "favicon": "/images/favicon.svg",
+  "colors": {
+    "primary": "#e94560",
+    "light": "#ff6b81",
+    "dark": "#1a1a2e",
+    "anchors": {
+      "from": "#e94560",
+      "to": "#0f3460"
+    }
+  },
+  "topbarLinks": [
+    {
+      "name": "Website",
+      "url": "https://syogun.com"
+    }
+  ],
+  "topbarCtaButton": {
+    "name": "Get Started",
+    "url": "https://syogun.com"
+  },
+  "tabs": [
+    {
+      "name": "API Reference",
+      "url": "api-reference"
+    },
+    {
+      "name": "MCP Tools",
+      "url": "mcp-tools"
+    }
+  ],
+  "anchors": [
+    {
+      "name": "GitHub",
+      "icon": "github",
+      "url": "https://github.com/torutesu/shogun-ai"
+    }
+  ],
+  "navigation": [
+    {
+      "group": "Get Started",
+      "pages": [
+        "introduction",
+        "quickstart",
+        "getting-started/installation",
+        "getting-started/configuration",
+        "getting-started/first-memory",
+        "getting-started/claude-desktop"
+      ]
+    },
+    {
+      "group": "Concepts",
+      "pages": [
+        "concepts/pages",
+        "concepts/search",
+        "concepts/dream-cycle",
+        "concepts/byok",
+        "concepts/cost-optimization"
+      ]
+    },
+    {
+      "group": "MCP Tools",
+      "pages": [
+        "mcp-tools/overview",
+        "mcp-tools/read",
+        "mcp-tools/write",
+        "mcp-tools/admin"
+      ]
+    },
+    {
+      "group": "API Reference",
+      "pages": [
+        "api-reference/brain",
+        "api-reference/pages",
+        "api-reference/search",
+        "api-reference/dream-cycle"
+      ]
+    },
+    {
+      "group": "Developer Guide",
+      "pages": [
+        "developer/architecture",
+        "developer/contributing",
+        "developer/testing"
+      ]
+    }
+  ],
+  "footerSocials": {
+    "x": "https://x.com/syogun_ai",
+    "github": "https://github.com/torutesu/shogun-ai"
+  }
+}

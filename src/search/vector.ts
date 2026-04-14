@@ -1,5 +1,6 @@
 import type { PostgresEngine } from "../engine/postgres.js";
 import type { EmbeddingProvider, Page } from "../types.js";
+import { logger } from "../logger.js";
 
 export interface VectorResult {
   page: Page;
@@ -90,14 +91,27 @@ export class VectorSearch {
     // Get embeddings
     const embeddings = await this.embeddingProvider.embed(chunks);
 
-    // Insert chunks with embeddings
-    for (let i = 0; i < chunks.length; i++) {
-      const vectorStr = `[${embeddings[i].join(",")}]`;
+    // Batch INSERT: build a single multi-row INSERT instead of N queries
+    const BATCH_SIZE = 50;
+    for (let batchStart = 0; batchStart < chunks.length; batchStart += BATCH_SIZE) {
+      const batchEnd = Math.min(batchStart + BATCH_SIZE, chunks.length);
+      const values: string[] = [];
+      const params: unknown[] = [];
+      let paramIdx = 1;
+
+      for (let i = batchStart; i < batchEnd; i++) {
+        const vectorStr = `[${embeddings[i].join(",")}]`;
+        values.push(`($${paramIdx++}, $${paramIdx++}, $${paramIdx++}::vector, $${paramIdx++}, $${paramIdx++})`);
+        params.push(pageId, chunks[i], vectorStr, source, i);
+      }
+
       await this.engine.query(
         `INSERT INTO content_chunks (page_id, chunk_text, embedding, chunk_source, chunk_index)
-         VALUES ($1, $2, $3::vector, $4, $5)`,
-        [pageId, chunks[i], vectorStr, source, i]
+         VALUES ${values.join(", ")}`,
+        params
       );
     }
+
+    logger.debug(`Indexed ${chunks.length} chunks for page ${pageId} (source=${source})`);
   }
 }

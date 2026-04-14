@@ -12,13 +12,20 @@ export { PageStore, TimelineStore, LinkStore, TagStore } from "./memory/index.js
 export { recursiveChunk, semanticChunk } from "./chunking/index.js";
 
 // Embeddings
-export { OpenAIEmbeddingProvider } from "./embeddings/index.js";
+export { OpenAIEmbeddingProvider, CachedEmbeddingProvider, TieredEmbeddingProvider } from "./embeddings/index.js";
+
+// LLM Router
+export { LLMRouter, createClaudeProvider, createOpenAIProvider } from "./llm/index.js";
+export type { LLMProvider, TaskComplexity } from "./llm/index.js";
 
 // Search
 export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup } from "./search/index.js";
 
 // Dream Cycle
 export { DreamCycle, scheduleDreamCycle } from "./dream/index.js";
+
+// Logger
+export { logger } from "./logger.js";
 
 // MCP
 export { startMCPServer } from "./mcp/index.js";

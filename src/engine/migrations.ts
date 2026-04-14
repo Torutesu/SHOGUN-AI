@@ -26,7 +26,7 @@ export const MIGRATIONS = [
         id SERIAL PRIMARY KEY,
         page_id INTEGER NOT NULL REFERENCES pages(id) ON DELETE CASCADE,
         chunk_text TEXT NOT NULL,
-        embedding vector(3072),
+        embedding vector(1536),
         chunk_source TEXT NOT NULL CHECK (chunk_source IN ('compiled_truth', 'timeline')),
         chunk_index INTEGER NOT NULL DEFAULT 0,
         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
@@ -151,6 +151,47 @@ export const MIGRATIONS = [
         BEFORE UPDATE ON pages
         FOR EACH ROW
         EXECUTE FUNCTION pages_updated_at();
+    `,
+  },
+  {
+    version: 2,
+    name: "hnsw_index_and_optimizations",
+    sql: `
+      -- HNSW index for fast vector similarity search
+      -- Without this, vector search does linear scan (O(n))
+      CREATE INDEX IF NOT EXISTS idx_content_chunks_embedding_hnsw
+        ON content_chunks USING hnsw (embedding vector_cosine_ops)
+        WITH (m = 16, ef_construction = 64);
+
+      -- Embedding cache for cost reduction
+      CREATE TABLE IF NOT EXISTS embedding_cache (
+        text_hash TEXT PRIMARY KEY,
+        embedding vector(1536),
+        model TEXT NOT NULL DEFAULT 'text-embedding-3-large',
+        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+      );
+      CREATE INDEX IF NOT EXISTS idx_embedding_cache_hash ON embedding_cache(text_hash);
+
+      -- Dream Cycle execution log
+      CREATE TABLE IF NOT EXISTS dream_cycle_log (
+        id SERIAL PRIMARY KEY,
+        started_at TIMESTAMPTZ NOT NULL,
+        completed_at TIMESTAMPTZ,
+        synced INTEGER NOT NULL DEFAULT 0,
+        skipped INTEGER NOT NULL DEFAULT 0,
+        entities_found INTEGER NOT NULL DEFAULT 0,
+        links_fixed INTEGER NOT NULL DEFAULT 0,
+        pages_merged INTEGER NOT NULL DEFAULT 0,
+        health_report JSONB,
+        status TEXT NOT NULL DEFAULT 'running' CHECK (status IN ('running', 'completed', 'failed')),
+        error TEXT
+      );
+
+      -- Additional performance indexes
+      CREATE INDEX IF NOT EXISTS idx_content_chunks_source ON content_chunks(chunk_source);
+      CREATE INDEX IF NOT EXISTS idx_timeline_entries_date ON timeline_entries(entry_date);
+      CREATE INDEX IF NOT EXISTS idx_pages_updated_at ON pages(updated_at);
+      CREATE INDEX IF NOT EXISTS idx_pages_content_hash ON pages(content_hash);
     `,
   },
 ];

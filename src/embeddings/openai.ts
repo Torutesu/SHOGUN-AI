@@ -17,7 +17,7 @@ export class OpenAIEmbeddingProvider implements EmbeddingProvider {
   constructor(options: OpenAIEmbeddingOptions) {
     this.client = new OpenAI({ apiKey: options.apiKey });
     this.model = options.model ?? "text-embedding-3-large";
-    this.dimensions = options.dimensions ?? 3072;
+    this.dimensions = options.dimensions ?? 1536;
     this.batchSize = options.batchSize ?? 100;
   }
 

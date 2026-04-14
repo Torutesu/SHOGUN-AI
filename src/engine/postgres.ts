@@ -1,6 +1,7 @@
 import { PGlite } from "@electric-sql/pglite";
 import { vector } from "@electric-sql/pglite/vector";
 import { MIGRATIONS } from "./migrations.js";
+import { logger } from "../logger.js";
 
 export interface PostgresEngineOptions {
   dataDir?: string;
@@ -15,11 +16,13 @@ export class PostgresEngine {
   }
 
   async init(): Promise<void> {
+    logger.info("Initializing PGLite engine", { dataDir: this.dataDir });
     this.db = new PGlite(this.dataDir, {
       extensions: { vector },
     });
     await this.db.waitReady;
     await this.runMigrations();
+    logger.info("PGLite engine ready");
   }
 
   private async runMigrations(): Promise<void> {
@@ -41,11 +44,24 @@ export class PostgresEngine {
 
     for (const migration of MIGRATIONS) {
       if (migration.version > currentVersion) {
-        await db.exec(migration.sql);
-        await db.query(
-          "INSERT INTO schema_migrations (version, name) VALUES ($1, $2)",
-          [migration.version, migration.name]
-        );
+        logger.info(`Running migration v${migration.version}: ${migration.name}`);
+        try {
+          await db.exec(migration.sql);
+          await db.query(
+            "INSERT INTO schema_migrations (version, name) VALUES ($1, $2)",
+            [migration.version, migration.name]
+          );
+          logger.info(`Migration v${migration.version} applied successfully`);
+        } catch (error: unknown) {
+          const err = error as Error;
+          logger.error(`Migration v${migration.version} failed: ${err.message}`, {
+            migration: migration.name,
+            error: err.message,
+          });
+          throw new Error(
+            `Migration v${migration.version} (${migration.name}) failed: ${err.message}`
+          );
+        }
       }
     }
   }
@@ -75,6 +91,7 @@ export class PostgresEngine {
 
   async close(): Promise<void> {
     if (this.db) {
+      logger.info("Closing PGLite engine");
       await this.db.close();
       this.db = null;
     }

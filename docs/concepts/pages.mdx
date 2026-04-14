@@ -1,0 +1,70 @@
+---
+title: Pages
+description: "Pages are the fundamental unit of memory in SHOGUN."
+---
+
+## What is a Page? / ページとは
+
+A **Page** is the fundamental unit of memory in SHOGUN. Each page represents a single entity — a person, company, concept, or session — with its own slug, compiled truth, and timeline.
+
+**ページ**はSHOGUNのメモリの基本単位です。各ページは一つのエンティティ（人物・企業・コンセプト・セッション）を表し、固有のslug、compiled truth、timelineを持ちます。
+
+## Page Structure / ページ構造
+
+```markdown
+---
+type: person
+title: Toru Yamamoto
+tags: [founder, tokyo, ai]
+---
+
+Select KK founder. Building SHOGUN — an AI OS combining
+local screen capture with persistent world memory.
+
+---
+
+- 2025-01-15: Founded Select KK
+- 2025-06-01: Launched SHOGUN beta
+- 2026-04-14: Memory Layer architecture finalized
+```
+
+### Compiled Truth / コンパイルされた真実
+
+The section **above the divider** (`---`) is the **compiled truth**: the current best understanding of the entity. It is **overwritten on each update** — the AI rewrites it as new information arrives.
+
+区切り線（`---`）**より上**の部分が**compiled truth**です。エンティティについての現時点での最良の理解であり、新しい情報が到着するたびに**上書き更新**されます。
+
+### Timeline / タイムライン
+
+The section **below the divider** is the **timeline**: an append-only evidence log. Entries are **never edited or deleted** — they form an immutable record of observations.
+
+区切り線**より下**が**timeline**です。追記のみの証拠ログであり、エントリは**編集も削除もされません**。観察の不変記録を形成します。
+
+## Page Types / ページタイプ
+
+| Type | Slug Pattern | Description |
+|---|---|---|
+| `person` | `people/name` | 人物 — 同僚、友人、連絡先 |
+| `company` | `companies/name` | 企業 — 取引先、投資先 |
+| `session` | `sessions/date` | セッション — 日次の活動ログ |
+| `concept` | `concepts/name` | コンセプト — アイデア、技術、プロジェクト |
+
+## Auto-Versioning / 自動バージョニング
+
+Every time a page's compiled truth is updated, the previous version is automatically saved. You can view version history and revert to any previous version.
+
+compiled truthが更新されるたびに、前のバージョンが自動的に保存されます。バージョン履歴の確認や、任意の過去バージョンへの巻き戻しが可能です。
+
+```typescript
+// View versions
+const versions = await brain.pages.getVersions("people/toru-yamamoto");
+
+// Revert to version 1
+await brain.pages.revertToVersion("people/toru-yamamoto", 1);
+```
+
+## Idempotency / 冪等性
+
+SHOGUN uses SHA-256 content hashing for idempotency. If you `put_page` with identical content, no update is performed and no version is created.
+
+SHOGUNはSHA-256コンテンツハッシュによる冪等性を提供します。同一内容で`put_page`しても、更新は実行されずバージョンも作成されません。

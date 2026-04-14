@@ -1,0 +1,64 @@
+---
+title: MCP Tools Overview
+description: "21 tools for AI agent integration with SHOGUN Memory Layer."
+---
+
+## Overview / 概要
+
+SHOGUN provides **21 MCP (Model Context Protocol) tools** for AI agent integration. These tools allow Claude Desktop and other MCP-compatible agents to read, write, and manage your memory.
+
+SHOGUNは**21のMCP（Model Context Protocol）ツール**を提供し、AIエージェント連携を実現します。Claude Desktopおよび他のMCP対応エージェントからメモリの読取・書込・管理が可能です。
+
+## Tool Categories / ツールカテゴリ
+
+<CardGroup cols={3}>
+  <Card title="Read (10)" icon="eye" href="/mcp-tools/read">
+    Query and retrieve memory.
+    メモリの検索と取得。
+  </Card>
+  <Card title="Write (7)" icon="pen" href="/mcp-tools/write">
+    Create and update memory.
+    メモリの作成と更新。
+  </Card>
+  <Card title="Admin (3)" icon="gear" href="/mcp-tools/admin">
+    Manage and maintain brain.
+    Brainの管理とメンテナンス。
+  </Card>
+</CardGroup>
+
+## Quick Reference / クイックリファレンス
+
+### Read Tools
+
+| Tool | Description | Description (JP) |
+|---|---|---|
+| `get_page` | Get page by slug | slugでページ取得 |
+| `list_pages` | List pages with filters | フィルター付きページリスト |
+| `search` | Keyword full-text search | キーワード全文検索 |
+| `query` | Full hybrid search pipeline | ハイブリッド検索パイプライン |
+| `get_timeline` | Get page timeline entries | タイムラインエントリ取得 |
+| `get_backlinks` | Get incoming links | 被リンク取得 |
+| `traverse_graph` | Traverse link graph | リンクグラフ走査 |
+| `get_stats` | Brain statistics | Brain統計 |
+| `get_health` | Health report | ヘルスレポート |
+| `get_versions` | Version history | バージョン履歴 |
+
+### Write Tools
+
+| Tool | Description | Description (JP) |
+|---|---|---|
+| `put_page` | Create/update page | ページ作成/更新 |
+| `delete_page` | Delete page | ページ削除 |
+| `add_tag` | Add tag to page | タグ追加 |
+| `remove_tag` | Remove tag | タグ削除 |
+| `add_link` | Create link between pages | リンク作成 |
+| `remove_link` | Remove link | リンク削除 |
+| `add_timeline_entry` | Append timeline event | タイムラインイベント追加 |
+
+### Admin Tools
+
+| Tool | Description | Description (JP) |
+|---|---|---|
+| `revert_version` | Revert to previous version | バージョン巻き戻し |
+| `sync_brain` | Incremental sync | 差分同期 |
+| `dream_cycle` | Run Dream Cycle | Dream Cycle実行 |

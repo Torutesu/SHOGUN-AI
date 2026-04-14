@@ -1,0 +1,58 @@
+---
+title: BYOK (Bring Your Own Key)
+description: "Use your own API keys — no vendor lock-in."
+---
+
+## Overview / 概要
+
+SHOGUN follows the **BYOK (Bring Your Own Key)** model. You provide your own API keys for embedding and LLM services. No data is sent through SHOGUN's servers.
+
+SHOGUNは**BYOK（自分のAPIキーを使う）**モデルを採用。埋め込みとLLMサービスには自分のAPIキーを使用します。SHOGUNのサーバーを通じたデータ送信は一切ありません。
+
+## Supported Providers / 対応プロバイダー
+
+### Embeddings
+
+| Provider | Model | Dimensions | Cost |
+|---|---|---|---|
+| OpenAI | text-embedding-3-large | 256 / 1536 / 3072 | $0.13/1M tokens |
+
+### LLM
+
+| Provider | Model | Cost (Input) | Best For |
+|---|---|---|---|
+| Anthropic | Claude Haiku | $1/1M tokens | Query expansion, classification |
+| OpenAI | GPT-4o-mini | $0.15/1M tokens | Light tasks |
+| Anthropic | Claude Sonnet | $3/1M tokens | Entity extraction |
+| OpenAI | GPT-4o | $2.5/1M tokens | Medium tasks |
+| Anthropic | Claude Opus | $15/1M tokens | Complex reasoning |
+| Local | Ollama | Free | Offline / privacy |
+
+## Configuration / 設定
+
+```env
+# Embeddings (at least one required for vector search)
+OPENAI_API_KEY=sk-your-key
+
+# LLM (optional — enables query expansion and entity extraction)
+ANTHROPIC_API_KEY=sk-ant-your-key
+
+# Local fallback
+OLLAMA_BASE_URL=http://localhost:11434
+```
+
+## Offline Mode / オフラインモード
+
+SHOGUN works **without any API keys**. In offline mode:
+
+- Keyword search (tsvector) works fully
+- Vector search is disabled
+- Dream Cycle skips embedding and entity extraction steps
+- All data remains searchable via full-text search
+
+APIキーなしでもSHOGUNは**完全に動作**します。オフラインモードでは：
+
+- キーワード検索（tsvector）は完全に動作
+- ベクトル検索は無効
+- Dream Cycleは埋め込みとエンティティ抽出をスキップ
+- 全データはフルテキスト検索で検索可能

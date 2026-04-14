@@ -1,0 +1,102 @@
+---
+title: Cost Optimization
+description: "Reduce API costs by 70-90% with tiered models, embedding cache, and smart routing."
+---
+
+## Overview / 概要
+
+SHOGUN provides multiple strategies to minimize API costs while maintaining high quality. These optimizations can reduce costs by **70-90%**.
+
+SHOGUNは高品質を維持しながらAPIコストを最小化する複数の戦略を提供します。これらの最適化により、コストを**70-90%削減**可能です。
+
+## 1. Embedding Cache / 埋め込みキャッシュ
+
+SHOGUN caches embeddings using SHA-256 text hashing. Identical text is **never sent to the API twice**.
+
+SHOGUNはSHA-256テキストハッシュを使用して埋め込みをキャッシュします。同一テキストは**二度とAPIに送信されません**。
+
+```typescript
+import { CachedEmbeddingProvider, OpenAIEmbeddingProvider } from "@shogun/memory-layer";
+
+const inner = new OpenAIEmbeddingProvider({ apiKey: "sk-..." });
+const cached = new CachedEmbeddingProvider(inner, engine);
+await cached.init();
+
+// First call: API hit
+await cached.embed(["Hello world"]); // → API call
+
+// Second call: cache hit (zero cost)
+await cached.embed(["Hello world"]); // → from cache
+```
+
+**Expected savings: 60-80%** in typical usage where pages are re-chunked but content hasn't changed.
+
+## 2. Tiered Embedding Dimensions / 段階的埋め込み次元
+
+Choose the right dimension size for your use case:
+
+| Tier | Dimensions | Use Case | Relative Cost |
+|---|---|---|---|
+| `fast` | 256 | Classification, routing | Lowest |
+| `balanced` | 1536 | General search | Medium |
+| `full` | 3072 | Precision search | Highest |
+
+```typescript
+import { TieredEmbeddingProvider } from "@shogun/memory-layer";
+
+const provider = new TieredEmbeddingProvider({
+  apiKey: "sk-...",
+  tier: "balanced", // 1536 dims instead of 3072
+});
+```
+
+## 3. LLM Router / LLMルーター
+
+The LLM Router automatically selects the cheapest model that meets the task requirements.
+
+LLMルーターはタスク要件を満たす最安モデルを自動選択します。
+
+| Task Complexity | Example Tasks | Model Selection |
+|---|---|---|
+| `light` | Query expansion, tagging, classification | GPT-4o-mini ($0.15/1M) or Claude Haiku ($1/1M) |
+| `medium` | Entity extraction, summarization | Claude Sonnet ($3/1M) or GPT-4o ($2.5/1M) |
+| `heavy` | Memory consolidation, complex reasoning | Claude Opus ($15/1M) |
+
+```typescript
+import { LLMRouter, createClaudeProvider, createOpenAIProvider } from "@shogun/memory-layer";
+
+const router = new LLMRouter();
+router.addProvider(createOpenAIProvider("sk-...", "gpt-4o-mini"));
+router.addProvider(createClaudeProvider("sk-ant-...", "haiku"));
+router.addProvider(createClaudeProvider("sk-ant-...", "sonnet"));
+
+// Automatically picks cheapest available
+await router.call("Classify this text", "light");
+
+// Uses mid-tier for extraction
+await router.call("Extract entities from...", "medium");
+```
+
+## 4. Rate Limiting / レート制限
+
+Built-in rate limiting prevents API quota exhaustion during bulk operations like `syncAll()`.
+
+大量操作（`syncAll()`など）でのAPIクォータ超過を防ぐ組み込みレート制限。
+
+```typescript
+const provider = new TieredEmbeddingProvider({
+  apiKey: "sk-...",
+  rateLimitRPM: 3000, // Max 3000 requests per minute
+});
+```
+
+## Cost Comparison / コスト比較
+
+For a brain with 1,000 pages (average 3 chunks each):
+
+| Strategy | Monthly Cost | Savings |
+|---|---|---|
+| No optimization | ~$15/month | — |
+| + Embedding cache | ~$5/month | 67% |
+| + Tiered dimensions (1536) | ~$3/month | 80% |
+| + LLM Router (Haiku default) | ~$1.5/month | 90% |
