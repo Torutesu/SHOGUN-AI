@@ -451,6 +451,48 @@ async function dispatch(
             );
           }
         },
+        // Auto-summary when meeting ends (Granola-style)
+        onMeetingEnd: async (meetingApp, fullTranscript) => {
+          const router = brain.getLLMRouter();
+          if (!router || !fullTranscript.trim()) return;
+
+          const { SYSTEM_PROMPTS } = await import("../identity.js");
+          const summary = await router.call(
+            `${SYSTEM_PROMPTS.meetingSummary}\n\nTranscript:\n${fullTranscript.slice(0, 8000)}`,
+            "medium",
+            { maxTokens: 1024 }
+          );
+
+          // Save summary as a page
+          const date = new Date().toISOString().slice(0, 10);
+          const slug = `sessions/${date}-${meetingApp.toLowerCase().replace(/\s+/g, "-")}-summary`;
+          await brain.pages.putPage({
+            slug,
+            type: "session",
+            title: `${meetingApp} Summary — ${date}`,
+            compiled_truth: summary,
+            frontmatter: { source: "meeting_summary", app: meetingApp, auto_generated: true },
+          });
+          const summaryPage = await brain.pages.getPage(slug);
+          if (summaryPage) {
+            await brain.tags.addTag(summaryPage.id, "meeting-summary");
+            await brain.tags.addTag(summaryPage.id, "auto-generated");
+          }
+
+          // Trigger action engine event
+          const { ActionEngine, BUILTIN_ACTIONS } = await import("../actions/engine.js");
+          const actionEngine = new ActionEngine(brain, router);
+          for (const tmpl of BUILTIN_ACTIONS) {
+            if (tmpl.trigger.type === "event" && tmpl.trigger.event === "meeting_ended") {
+              actionEngine.addAction({ ...tmpl, id: `meeting-${Date.now()}`, enabled: true, createdAt: new Date() });
+            }
+          }
+          await actionEngine.triggerEvent("meeting_ended", {
+            meetingApp,
+            transcript: fullTranscript.slice(0, 4000),
+            summary,
+          });
+        },
       });
       audioEngine.start();
       return { started: true };

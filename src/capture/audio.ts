@@ -38,6 +38,8 @@ export interface TranscriptSegment {
 export interface AudioCaptureOptions {
   /** Callback when a new transcript chunk is ready */
   onTranscript: (segments: TranscriptSegment[], meetingApp: string) => Promise<void>;
+  /** Callback when a meeting ends — triggers auto-summary */
+  onMeetingEnd?: (meetingApp: string, fullTranscript: string) => Promise<void>;
   /** Callback for errors */
   onError?: (error: { type: string; message: string }) => void;
   /** PII filter */
@@ -66,7 +68,9 @@ export class AudioCaptureEngine {
   private platform: string;
   private piiFilter: PIIFilter;
   private onTranscript: (segments: TranscriptSegment[], meetingApp: string) => Promise<void>;
+  private onMeetingEnd: ((meetingApp: string, fullTranscript: string) => Promise<void>) | undefined;
   private onError: (error: { type: string; message: string }) => void;
+  private fullTranscript: string[] = [];
   private whisperModel: string;
   private chunkDuration: number;
   private meetingCheckInterval: number;
@@ -81,6 +85,7 @@ export class AudioCaptureEngine {
     this.platform = process.platform;
     this.piiFilter = options.piiFilter ?? new PIIFilter({ enabled: true });
     this.onTranscript = options.onTranscript;
+    this.onMeetingEnd = options.onMeetingEnd;
     this.onError = options.onError ?? (() => {});
     this.whisperModel = options.whisperModel ?? "base";
     this.chunkDuration = options.chunkDurationSec ?? 30;
@@ -227,6 +232,21 @@ export class AudioCaptureEngine {
 
     // Process final chunk
     await this.processCurrentChunk();
+
+    // Fire meeting_ended callback with full transcript for auto-summary
+    const meetingApp = this.currentMeetingApp;
+    if (meetingApp && this.onMeetingEnd && this.fullTranscript.length > 0) {
+      const transcript = this.fullTranscript.join(" ");
+      this.fullTranscript = [];
+      try {
+        await this.onMeetingEnd(meetingApp, transcript);
+      } catch (err) {
+        logger.error(`onMeetingEnd failed: ${err}`);
+      }
+    } else {
+      this.fullTranscript = [];
+    }
+
     this.currentMeetingApp = null;
   }
 
@@ -269,6 +289,8 @@ export class AudioCaptureEngine {
           ...s,
           text: this.piiFilter.filter(s.text),
         }));
+        // Accumulate for full transcript (used by onMeetingEnd)
+        this.fullTranscript.push(...filtered.map((s) => s.text));
         await this.onTranscript(filtered, this.currentMeetingApp);
       }
     } catch (err) {

@@ -63,8 +63,14 @@ const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
 
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
   if (isTauri) {
-    const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
-    return tauriInvoke<T>(cmd, args);
+    try {
+      const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
+      return await tauriInvoke<T>(cmd, args);
+    } catch (err) {
+      // Bridge failed — fall back to mock so UI doesn't break
+      console.warn(`[SHOGUN] Bridge call '${cmd}' failed, using mock:`, err);
+      return getMockResponse<T>(cmd, args);
+    }
   }
   return getMockResponse<T>(cmd, args);
 }
