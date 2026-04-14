@@ -6,6 +6,7 @@ import { Onboarding } from "./pages/Onboarding";
 import { Dashboard } from "./pages/Dashboard";
 import { Search } from "./pages/Search";
 import { PageView } from "./pages/PageView";
+import { PageEdit } from "./pages/PageEdit";
 import { Settings } from "./pages/Settings";
 import "./index.css";
 
@@ -17,6 +18,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route index element={<Dashboard />} />
           <Route path="search" element={<Search />} />
           <Route path="page/:slug" element={<PageView />} />
+          <Route path="page/:slug/edit" element={<PageEdit />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="/onboarding" element={<Onboarding />} />

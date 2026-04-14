@@ -21,15 +21,24 @@ export class CachedEmbeddingProvider implements EmbeddingProvider {
   }
 
   async init(): Promise<void> {
-    await this.engine.exec(`
-      CREATE TABLE IF NOT EXISTS embedding_cache (
-        text_hash TEXT PRIMARY KEY,
-        embedding vector(${this.dimensions}),
-        model TEXT NOT NULL DEFAULT 'text-embedding-3-large',
-        created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-      );
-      CREATE INDEX IF NOT EXISTS idx_embedding_cache_hash ON embedding_cache(text_hash);
-    `);
+    // Check if table exists with potentially different dimensions (from migration v2)
+    const exists = await this.engine.queryOne<{ exists: boolean }>(
+      `SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'embedding_cache') as exists`
+    );
+
+    if (!exists?.exists) {
+      await this.engine.exec(`
+        CREATE TABLE embedding_cache (
+          text_hash TEXT PRIMARY KEY,
+          embedding vector(${this.dimensions}),
+          model TEXT NOT NULL DEFAULT 'text-embedding-3-large',
+          created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+        );
+        CREATE INDEX IF NOT EXISTS idx_embedding_cache_hash ON embedding_cache(text_hash);
+      `);
+    }
+    // If table already exists (from migration), use it as-is.
+    // The migration creates vector(1536) which matches the default dimension.
   }
 
   async embed(texts: string[]): Promise<number[][]> {

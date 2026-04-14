@@ -129,9 +129,9 @@ export function createClaudeProvider(
   model: "haiku" | "sonnet" | "opus" = "haiku"
 ): LLMProvider {
   const modelMap = {
-    haiku: { id: "claude-haiku-4-5-20251001", cost: 1.0 },
-    sonnet: { id: "claude-sonnet-4-6", cost: 3.0 },
-    opus: { id: "claude-opus-4-6", cost: 15.0 },
+    haiku: { id: "claude-haiku-4-5-20251001", cost: 0.8 },
+    sonnet: { id: "claude-sonnet-4-5-20241022", cost: 3.0 },
+    opus: { id: "claude-opus-4-0-20250514", cost: 15.0 },
   };
 
   const config = modelMap[model];

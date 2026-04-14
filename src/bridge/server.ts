@@ -10,8 +10,12 @@
 
 import { createInterface } from "readline";
 import { ShogunBrain } from "../brain.js";
+import { OpenAIEmbeddingProvider } from "../embeddings/openai.js";
+import { DreamCycle } from "../dream/cycle.js";
+import { LLMRouter, createClaudeProvider, createOpenAIProvider } from "../llm/router.js";
 import { PIIFilter } from "../security/pii.js";
 import { logger } from "../logger.js";
+import type { ShogunBrainOptions } from "../brain.js";
 
 interface JsonRpcRequest {
   id: number;
@@ -30,11 +34,36 @@ logger.setLevel("warn");
 
 async function main() {
   const dataDir = process.env.SHOGUN_DATA_DIR ?? "./pgdata";
+  const openaiKey = process.env.OPENAI_API_KEY;
+  const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const piiEnabled = process.env.SHOGUN_PII_REMOVAL === "true";
   const piiFilter = new PIIFilter({ enabled: piiEnabled, logDetections: false });
 
-  const brain = new ShogunBrain({ dataDir });
+  // Configure brain with all available providers
+  const brainOptions: ShogunBrainOptions = { dataDir };
+
+  if (openaiKey) {
+    brainOptions.embeddingProvider = new OpenAIEmbeddingProvider({ apiKey: openaiKey });
+  }
+
+  // Build LLM router with available providers
+  const llmRouter = new LLMRouter();
+  if (openaiKey) {
+    llmRouter.addProvider(createOpenAIProvider(openaiKey, "gpt-4o-mini"));
+  }
+  if (anthropicKey) {
+    llmRouter.addProvider(createClaudeProvider(anthropicKey, "haiku"));
+    llmRouter.addProvider(createClaudeProvider(anthropicKey, "sonnet"));
+  }
+  if (llmRouter.listProviders().length > 0) {
+    brainOptions.llmRouter = llmRouter;
+  }
+
+  const brain = new ShogunBrain(brainOptions);
   await brain.init();
+
+  // Create full DreamCycle with entity extraction + consolidation
+  const dreamCycle = new DreamCycle(brain, { llmRouter: brainOptions.llmRouter });
 
   const rl = createInterface({ input: process.stdin });
 
@@ -48,7 +77,7 @@ async function main() {
 
     let response: JsonRpcResponse;
     try {
-      const result = await dispatch(brain, piiFilter, req.method, req.params);
+      const result = await dispatch(brain, piiFilter, dreamCycle, req.method, req.params);
       response = { id: req.id, result };
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
@@ -67,6 +96,7 @@ async function main() {
 async function dispatch(
   brain: ShogunBrain,
   piiFilter: PIIFilter,
+  dreamCycle: DreamCycle,
   method: string,
   params: Record<string, unknown>
 ): Promise<unknown> {
@@ -152,9 +182,11 @@ async function dispatch(
     }
 
     case "list_pages": {
+      const validTypes = ["person", "company", "session", "concept"];
+      const typeParam = params.type ? String(params.type) : undefined;
       const pages = await brain.pages.listPages({
-        type: params.type as any,
-        tag: params.tag as string | undefined,
+        type: typeParam && validTypes.includes(typeParam) ? typeParam as "person" | "company" | "session" | "concept" : undefined,
+        tag: params.tag ? String(params.tag) : undefined,
         limit: Number(params.limit ?? 50),
         offset: Number(params.offset ?? 0),
       });
@@ -167,7 +199,8 @@ async function dispatch(
     }
 
     case "run_dream_cycle": {
-      const result = await brain.runDreamCycle();
+      // Use full 6-step DreamCycle (entity extraction + consolidation)
+      const result = await dreamCycle.run();
       return result;
     }
 

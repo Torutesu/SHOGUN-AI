@@ -110,6 +110,12 @@ export function PageView() {
       {/* Actions */}
       <div className="flex gap-3">
         <button
+          onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)}
+          className="btn-primary"
+        >
+          編集 / Edit
+        </button>
+        <button
           onClick={async () => {
             if (confirm("このページを削除しますか？/ Delete this page?")) {
               await api.deletePage(page.slug);
