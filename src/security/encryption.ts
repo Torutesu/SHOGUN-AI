@@ -26,12 +26,14 @@ export class FieldEncryption {
   private key: Buffer;
   private _enabled: boolean;
 
-  constructor(passphrase?: string) {
+  constructor(passphrase?: string, installationId?: string) {
     if (passphrase) {
-      // Derive key from passphrase with a fixed application salt
-      // (the per-message salt is separate and random)
-      const appSalt = Buffer.from("shogun-memory-layer-v1", "utf-8");
-      this.key = scryptSync(passphrase, appSalt, KEY_LENGTH, {
+      // Derive key using installation-specific salt (unique per device)
+      // This prevents rainbow table / dictionary attacks across installations
+      const installSalt = installationId
+        ? Buffer.from(installationId, "utf-8")
+        : randomBytes(SALT_LENGTH);
+      this.key = scryptSync(passphrase, installSalt, KEY_LENGTH, {
         N: SCRYPT_N,
         r: SCRYPT_R,
         p: SCRYPT_P,
@@ -124,7 +126,7 @@ export class FieldEncryption {
 
 /**
  * EncryptedPageStore wrapper: transparently encrypts/decrypts
- * compiled_truth and timeline fields.
+ * compiled_truth, timeline, and chunk_text fields.
  */
 export class EncryptedFieldWrapper {
   constructor(private encryption: FieldEncryption) {}
@@ -153,5 +155,13 @@ export class EncryptedFieldWrapper {
       compiled_truth: this.encryption.decrypt(data.compiled_truth),
       timeline: this.encryption.decrypt(data.timeline),
     };
+  }
+
+  encryptChunk(text: string): string {
+    return this.encryption.enabled ? this.encryption.encrypt(text) : text;
+  }
+
+  decryptChunk(text: string): string {
+    return this.encryption.enabled ? this.encryption.decrypt(text) : text;
   }
 }

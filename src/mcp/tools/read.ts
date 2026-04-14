@@ -1,12 +1,14 @@
 import { z } from "zod";
 import type { ShogunBrain } from "../../brain.js";
+import { slugSchema, limitSchema, depthSchema, dateSchema } from "../../security/validation.js";
+import type { PageType } from "../../types.js";
 
 export function defineReadTools(brain: ShogunBrain) {
   return {
     get_page: {
       description: "Get a page by its slug. Returns the full page content including compiled truth and timeline.",
       inputSchema: z.object({
-        slug: z.string().describe("Page slug (e.g. 'people/toru-yamamoto')"),
+        slug: slugSchema.describe("Page slug (e.g. 'people/toru-yamamoto')"),
       }),
       handler: async (input: { slug: string }) => {
         const page = await brain.pages.getPage(input.slug);
@@ -22,13 +24,13 @@ export function defineReadTools(brain: ShogunBrain) {
       description: "List pages with optional type and tag filters.",
       inputSchema: z.object({
         type: z.enum(["person", "company", "session", "concept"]).optional(),
-        tag: z.string().optional(),
-        limit: z.number().optional().default(50),
-        offset: z.number().optional().default(0),
+        tag: z.string().max(100).optional(),
+        limit: limitSchema,
+        offset: z.number().int().min(0).max(10000).optional().default(0),
       }),
       handler: async (input: { type?: string; tag?: string; limit?: number; offset?: number }) => {
         const pages = await brain.pages.listPages({
-          type: input.type as any,
+          type: input.type as PageType | undefined,
           tag: input.tag,
           limit: input.limit,
           offset: input.offset,
@@ -48,8 +50,8 @@ export function defineReadTools(brain: ShogunBrain) {
     search: {
       description: "Keyword search across all pages using full-text search.",
       inputSchema: z.object({
-        query: z.string().describe("Search query"),
-        limit: z.number().optional().default(20),
+        query: z.string().min(1).max(1000).describe("Search query"),
+        limit: limitSchema.default(20),
       }),
       handler: async (input: { query: string; limit?: number }) => {
         const results = await brain.searchPipeline.keywordOnly(input.query, input.limit);
@@ -67,16 +69,16 @@ export function defineReadTools(brain: ShogunBrain) {
     query: {
       description: "Full hybrid search using keyword + vector search with RRF fusion and deduplication.",
       inputSchema: z.object({
-        query: z.string().describe("Natural language query"),
-        limit: z.number().optional().default(10),
-        type_filter: z.array(z.enum(["person", "company", "session", "concept"])).optional(),
-        tag_filter: z.array(z.string()).optional(),
+        query: z.string().min(1).max(2000).describe("Natural language query"),
+        limit: limitSchema.default(10),
+        type_filter: z.array(z.enum(["person", "company", "session", "concept"])).max(4).optional(),
+        tag_filter: z.array(z.string().max(100)).max(20).optional(),
       }),
       handler: async (input: { query: string; limit?: number; type_filter?: string[]; tag_filter?: string[] }) => {
         const results = await brain.searchPipeline.query({
           query: input.query,
           limit: input.limit,
-          type_filter: input.type_filter as any,
+          type_filter: input.type_filter as PageType[] | undefined,
           tag_filter: input.tag_filter,
         });
         return {
@@ -95,10 +97,10 @@ export function defineReadTools(brain: ShogunBrain) {
     get_timeline: {
       description: "Get structured timeline entries for a page.",
       inputSchema: z.object({
-        slug: z.string(),
-        limit: z.number().optional().default(50),
-        after: z.string().optional().describe("Filter entries after this date (YYYY-MM-DD)"),
-        before: z.string().optional().describe("Filter entries before this date (YYYY-MM-DD)"),
+        slug: slugSchema,
+        limit: limitSchema,
+        after: dateSchema.optional().describe("Filter entries after this date (YYYY-MM-DD)"),
+        before: dateSchema.optional().describe("Filter entries before this date (YYYY-MM-DD)"),
       }),
       handler: async (input: { slug: string; limit?: number; after?: string; before?: string }) => {
         const entries = await brain.timeline.getEntriesBySlug(input.slug, {
@@ -113,7 +115,7 @@ export function defineReadTools(brain: ShogunBrain) {
     get_backlinks: {
       description: "Get pages that link to a given page (incoming links).",
       inputSchema: z.object({
-        slug: z.string(),
+        slug: slugSchema,
       }),
       handler: async (input: { slug: string }) => {
         const page = await brain.pages.getPage(input.slug);
@@ -132,11 +134,11 @@ export function defineReadTools(brain: ShogunBrain) {
     },
 
     traverse_graph: {
-      description: "Traverse the link graph starting from a page, up to a given depth.",
+      description: "Traverse the link graph starting from a page, up to a given depth (max 10).",
       inputSchema: z.object({
-        slug: z.string(),
-        depth: z.number().optional().default(2),
-        link_type: z.string().optional(),
+        slug: slugSchema,
+        depth: depthSchema,
+        link_type: z.string().max(100).optional(),
       }),
       handler: async (input: { slug: string; depth?: number; link_type?: string }) => {
         const page = await brain.pages.getPage(input.slug);
@@ -175,7 +177,7 @@ export function defineReadTools(brain: ShogunBrain) {
     get_versions: {
       description: "Get version history for a page's compiled truth.",
       inputSchema: z.object({
-        slug: z.string(),
+        slug: slugSchema,
       }),
       handler: async (input: { slug: string }) => {
         const versions = await brain.pages.getVersions(input.slug);

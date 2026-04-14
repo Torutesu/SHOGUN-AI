@@ -25,7 +25,16 @@ export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup, Japanese
 export { DreamCycle, scheduleDreamCycle, EntityExtractor, MemoryConsolidator } from "./dream/index.js";
 
 // Security
-export { FieldEncryption, EncryptedFieldWrapper } from "./security/index.js";
+export {
+  FieldEncryption, EncryptedFieldWrapper,
+  PIIFilter, detectPII, removePII, containsPII,
+  RateLimiter,
+  slugSchema, dateSchema, tagSchema, sanitizeDataDir, sanitizeError,
+} from "./security/index.js";
+export type { PIIDetection, PIIFilterOptions } from "./security/index.js";
+
+// Integrations
+export { SlackIntegration, GitHubIntegration, GoogleCalendarIntegration, BrainExporter } from "./integrations/index.js";
 
 // Logger
 export { logger } from "./logger.js";
