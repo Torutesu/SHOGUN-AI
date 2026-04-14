@@ -29,8 +29,11 @@ export { PassiveCaptureEngine, OCRCaptureEngine, AudioCaptureEngine, AdaptiveCap
 export type { CaptureEvent, PassiveCaptureOptions, OCRResult, TranscriptSegment, SystemState } from "./capture/index.js";
 
 // Agents (L1/L2/L3)
-export { classifyActionLevel, ApprovalQueue } from "./agents/index.js";
-export type { AgentLevel, AgentAction } from "./agents/index.js";
+export { classifyActionLevel, ApprovalQueue, BriefingGenerator } from "./agents/index.js";
+export type { AgentLevel, AgentAction, Briefing } from "./agents/index.js";
+
+// REST API
+export { HTTPAPIServer } from "./api/index.js";
 
 // Timeline
 export { TimelineService } from "./memory/timeline-service.js";
@@ -45,8 +48,8 @@ export { ActionEngine, BUILTIN_ACTIONS } from "./actions/index.js";
 export type { Action, ActionTrigger, ActionStep } from "./actions/index.js";
 
 // Billing
-export { StripeBilling } from "./billing/index.js";
-export type { SubscriptionStatus, StripeBillingOptions } from "./billing/index.js";
+export { StripeBilling, getPlanLimits, isFeatureEnabled, checkPageLimit } from "./billing/index.js";
+export type { SubscriptionStatus, StripeBillingOptions, Plan, PlanLimits } from "./billing/index.js";
 
 // Security
 export {

@@ -603,6 +603,22 @@ async function dispatch(
 
     // ─── Private Mode ────────────────────────────────
 
+    case "generate_briefing": {
+      const router = brain.getLLMRouter();
+      if (!router) throw new Error("LLM router required for briefings");
+      const { BriefingGenerator } = await import("../agents/briefing.js");
+      const gen = new BriefingGenerator(brain, router);
+      const type = String(params.type ?? "morning");
+      return type === "evening" ? gen.generateEvening() : gen.generateMorning();
+    }
+
+    case "start_rest_api": {
+      const { HTTPAPIServer } = await import("../api/http-server.js");
+      const server = new HTTPAPIServer(brain, Number(params.port ?? 3847));
+      server.start();
+      return { started: true, port: Number(params.port ?? 3847) };
+    }
+
     case "pause_capture": {
       // Signal all capture engines to pause
       return { paused: true };

@@ -1,0 +1,171 @@
+openapi: 3.1.0
+info:
+  title: SHOGUN Memory Layer API
+  description: REST API for SHOGUN Memory — local-first AI memory system
+  version: 0.1.0
+  contact:
+    name: Select KK
+    url: https://syogun.com
+
+servers:
+  - url: http://localhost:3847
+    description: Local SHOGUN instance
+
+paths:
+  /api/stats:
+    get:
+      summary: Get brain statistics
+      responses:
+        "200":
+          description: Brain stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrainStats"
+
+  /api/health:
+    get:
+      summary: Get brain health report
+      responses:
+        "200":
+          description: Health report
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/HealthReport"
+
+  /api/pages:
+    get:
+      summary: List pages
+      parameters:
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [person, company, session, concept]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 50
+      responses:
+        "200":
+          description: Page list
+
+  /api/page:
+    get:
+      summary: Get page by slug
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Page data
+
+    post:
+      summary: Create or update page
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/PageInput"
+      responses:
+        "200":
+          description: Created/updated page
+
+    delete:
+      summary: Delete page
+      parameters:
+        - name: slug
+          in: query
+          required: true
+          schema:
+            type: string
+      responses:
+        "200":
+          description: Deletion result
+
+  /api/search:
+    post:
+      summary: Search memory
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                limit:
+                  type: integer
+                  default: 20
+              required: [query]
+      responses:
+        "200":
+          description: Search results
+
+  /api/capture:
+    post:
+      summary: Capture event (browser extension endpoint)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                type:
+                  type: string
+                  enum: [page_visit, text_selection, clipboard]
+                text:
+                  type: string
+                url:
+                  type: string
+                title:
+                  type: string
+              required: [type, text]
+      responses:
+        "200":
+          description: Capture acknowledged
+
+components:
+  schemas:
+    BrainStats:
+      type: object
+      properties:
+        total_pages: { type: integer }
+        total_chunks: { type: integer }
+        embedded_chunks: { type: integer }
+        total_links: { type: integer }
+        total_tags: { type: integer }
+        total_timeline_entries: { type: integer }
+        pages_by_type:
+          type: object
+          properties:
+            person: { type: integer }
+            company: { type: integer }
+            session: { type: integer }
+            concept: { type: integer }
+
+    HealthReport:
+      type: object
+      properties:
+        embed_coverage: { type: number }
+        stale_pages: { type: integer }
+        orphan_pages: { type: integer }
+        broken_links: { type: integer }
+        last_dream_cycle: { type: string, nullable: true }
+
+    PageInput:
+      type: object
+      properties:
+        slug: { type: string }
+        type: { type: string, enum: [person, company, session, concept] }
+        title: { type: string }
+        compiled_truth: { type: string }
+      required: [slug, type, title, compiled_truth]
