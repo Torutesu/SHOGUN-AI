@@ -10,3 +10,4 @@ export {
   isBiometricAvailable, registerBiometric, verifyBiometric,
 } from "./biometric.js";
 export type { BiometricCredential } from "./biometric.js";
+export { KeychainManager } from "./keychain.js";

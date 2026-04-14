@@ -75,6 +75,36 @@ describe("FieldEncryption", () => {
 
     expect(() => enc2.decrypt(encrypted)).toThrow();
   });
+
+  it("should derive deterministic key with installationId", () => {
+    const enc1 = new FieldEncryption("passphrase", "device-abc-123");
+    const enc2 = new FieldEncryption("passphrase", "device-abc-123");
+
+    const plaintext = "Same installation should decrypt";
+    const encrypted = enc1.encrypt(plaintext);
+    const decrypted = enc2.decrypt(encrypted);
+    expect(decrypted).toBe(plaintext);
+  });
+
+  it("should NOT decrypt with different installationId", () => {
+    const enc1 = new FieldEncryption("passphrase", "device-A");
+    const enc2 = new FieldEncryption("passphrase", "device-B");
+
+    const encrypted = enc1.encrypt("device-specific data");
+    expect(() => enc2.decrypt(encrypted)).toThrow();
+  });
+
+  it("should encrypt/decrypt chunk text via wrapper", () => {
+    const enc = new FieldEncryption("passphrase");
+    const wrapper = new EncryptedFieldWrapper(enc);
+
+    const original = "This is a chunk of text from compiled_truth";
+    const encrypted = wrapper.encryptChunk(original);
+    expect(encrypted).not.toBe(original);
+
+    const decrypted = wrapper.decryptChunk(encrypted);
+    expect(decrypted).toBe(original);
+  });
 });
 
 describe("EncryptedFieldWrapper", () => {

@@ -34,6 +34,8 @@ export {
   PIIFilter, detectPII, removePII, containsPII,
   RateLimiter,
   slugSchema, dateSchema, tagSchema, sanitizeDataDir, sanitizeError,
+  KeychainManager,
+  isBiometricAvailable, registerBiometric, verifyBiometric,
 } from "./security/index.js";
 export type { PIIDetection, PIIFilterOptions } from "./security/index.js";
 

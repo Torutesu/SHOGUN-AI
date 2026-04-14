@@ -37,9 +37,22 @@ async function main() {
   const openaiKey = process.env.OPENAI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
   const embeddingTier = process.env.SHOGUN_EMBEDDING_TIER ?? "balanced";
-  const encryptionPassphrase = process.env.SHOGUN_ENCRYPTION_PASSPHRASE;
+  let encryptionPassphrase = process.env.SHOGUN_ENCRYPTION_PASSPHRASE;
   const piiEnabled = process.env.SHOGUN_PII_REMOVAL !== "false"; // Default ON
   const piiFilter = new PIIFilter({ enabled: piiEnabled, logDetections: false });
+
+  // If encryption requested but no passphrase, try OS keychain
+  if (encryptionPassphrase === "keychain") {
+    const { KeychainManager } = await import("../security/keychain.js");
+    const keychain = new KeychainManager();
+    const available = await keychain.isAvailable();
+    if (available) {
+      encryptionPassphrase = await keychain.getOrCreatePassphrase();
+    } else {
+      encryptionPassphrase = undefined;
+      process.stderr.write("Warning: OS keychain not available. Encryption disabled.\n");
+    }
+  }
 
   // Configure brain with all available providers
   const brainOptions: ShogunBrainOptions = {

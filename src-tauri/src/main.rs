@@ -37,8 +37,8 @@ fn main() {
                         embedding_tier = tier.to_string();
                     }
                     if val.get("encryption_enabled").and_then(|v| v.as_bool()).unwrap_or(false) {
-                        // Use a derived passphrase from the data dir (user can change later)
-                        encryption_passphrase = Some(format!("shogun-{}", data_dir));
+                        // Signal bridge to use OS keychain for encryption key
+                        encryption_passphrase = Some("keychain".to_string());
                     }
                 }
             }
