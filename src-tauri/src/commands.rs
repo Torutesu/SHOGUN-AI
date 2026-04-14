@@ -28,8 +28,17 @@ pub fn init_bridge(
         return Ok(());
     }
 
+    // Resolve bridge path: try ../dist (dev from src-tauri) then dist/ (from project root)
+    let bridge_path = if std::path::Path::new("../dist/bridge/server.js").exists() {
+        "../dist/bridge/server.js"
+    } else if std::path::Path::new("dist/bridge/server.js").exists() {
+        "dist/bridge/server.js"
+    } else {
+        return Err("Bridge server.js not found. Run 'npm run build' first.".to_string());
+    };
+
     let mut cmd = Command::new("node");
-    cmd.arg("dist/bridge/server.js")
+    cmd.arg(bridge_path)
         .env("SHOGUN_DATA_DIR", data_dir)
         .env("SHOGUN_PII_REMOVAL", if pii_removal { "true" } else { "false" })
         .env("SHOGUN_LOG_LEVEL", "warn")
@@ -72,6 +81,11 @@ pub fn init_bridge(
 }
 
 /// Send a JSON-RPC request and wait for matching response.
+/// Also exposed publicly for main.rs auto-start calls.
+pub fn bridge_call_pub(method: &str, params: Value) -> Result<Value, String> {
+    bridge_call(method, params)
+}
+
 fn bridge_call(method: &str, params: Value) -> Result<Value, String> {
     let id = REQUEST_ID.fetch_add(1, Ordering::Relaxed);
     let request = serde_json::json!({ "id": id, "method": method, "params": params });

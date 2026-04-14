@@ -8,12 +8,11 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
-            // Read settings from store to configure the bridge
             use tauri_plugin_store::StoreExt;
             let store = app.store("settings.json").ok();
 
             let mut data_dir = "./pgdata".to_string();
-            let mut pii_removal = true; // Default ON for privacy-first
+            let mut pii_removal = true;
             let mut openai_key: Option<String> = None;
             let mut anthropic_key: Option<String> = None;
             let mut embedding_tier = "balanced".to_string();
@@ -37,12 +36,12 @@ fn main() {
                         embedding_tier = tier.to_string();
                     }
                     if val.get("encryption_enabled").and_then(|v| v.as_bool()).unwrap_or(false) {
-                        // Signal bridge to use OS keychain for encryption key
                         encryption_passphrase = Some("keychain".to_string());
                     }
                 }
             }
 
+            // 1. Start the bridge
             if let Err(e) = commands::init_bridge(
                 &data_dir, pii_removal,
                 openai_key.as_deref(),
@@ -51,7 +50,29 @@ fn main() {
                 encryption_passphrase.as_deref(),
             ) {
                 eprintln!("Warning: Bridge init failed: {}", e);
+            } else {
+                // 2. Auto-start capture after bridge is ready
+                std::thread::spawn(|| {
+                    // Wait for bridge to initialize
+                    std::thread::sleep(std::time::Duration::from_secs(3));
+
+                    // Start passive capture (clipboard + window title)
+                    if let Err(e) = commands::bridge_call_pub("start_capture", serde_json::json!({ "interval_ms": 5000 })) {
+                        eprintln!("Warning: Capture start failed: {}", e);
+                    }
+
+                    // Start OCR capture (accessibility API)
+                    if let Err(e) = commands::bridge_call_pub("start_ocr_capture", serde_json::json!({ "interval_ms": 3000 })) {
+                        eprintln!("Warning: OCR capture start failed: {}", e);
+                    }
+
+                    // Start audio capture (meeting detection)
+                    if let Err(e) = commands::bridge_call_pub("start_audio_capture", serde_json::json!({})) {
+                        eprintln!("Warning: Audio capture start failed: {}", e);
+                    }
+                });
             }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
