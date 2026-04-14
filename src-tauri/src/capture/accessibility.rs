@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+#[cfg(target_os = "macos")]
 use std::process::Command;
 
 /// Captured text content from the active window.

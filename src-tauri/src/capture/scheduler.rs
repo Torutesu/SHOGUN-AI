@@ -5,7 +5,7 @@ use std::time::Duration;
 
 use sha2::{Sha256, Digest};
 
-use super::accessibility::{capture_active_window, CapturedContent};
+use super::accessibility::capture_active_window;
 use super::pipeline::write_to_memory;
 
 /// Global capture state.
