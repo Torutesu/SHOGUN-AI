@@ -3,10 +3,16 @@ import { api, type AppSettings } from "../lib/tauri";
 
 export function Settings() {
   const [settings, setSettings] = useState<AppSettings | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    api.loadSettings().then(setSettings);
+    api.loadSettings()
+      .then(setSettings)
+      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load settings"))
+      .finally(() => setLoading(false));
   }, []);
 
   const update = (patch: Partial<AppSettings>) => {
@@ -17,18 +23,43 @@ export function Settings() {
 
   const handleSave = async () => {
     if (!settings) return;
-    await api.saveSettings(settings);
-    setSaved(true);
-    setTimeout(() => setSaved(false), 2000);
+    setSaving(true);
+    setError(null);
+    try {
+      await api.saveSettings(settings);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to save settings");
+    }
+    setSaving(false);
   };
 
+  if (loading) {
+    return (
+      <div className="p-8 flex items-center justify-center h-full">
+        <div className="w-6 h-6 border-2 border-shogun-red border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
   if (!settings) {
-    return <div className="p-8"><p className="text-shogun-muted">Loading...</p></div>;
+    return (
+      <div className="p-8 text-center">
+        <p className="text-red-400">{error ?? "Failed to load settings"}</p>
+      </div>
+    );
   }
 
   return (
-    <div className="p-8 max-w-2xl space-y-8">
+    <div className="p-8 max-w-2xl space-y-8 animate-fadeIn">
       <h1 className="text-3xl font-bold">Settings / 設定</h1>
+
+      {error && (
+        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm animate-slideDown">
+          {error}
+        </div>
+      )}
 
       {/* API Keys */}
       <section className="card space-y-4">
@@ -97,7 +128,9 @@ export function Settings() {
           />
           <div>
             <p className="font-medium">Encryption / 暗号化</p>
-            <p className="text-xs text-shogun-muted">AES-256-GCM でフィールドを暗号化</p>
+            <p className="text-xs text-shogun-muted">
+              AES-256-GCM (OSキーチェーン保護)。変更は再起動後に反映されます。
+            </p>
           </div>
         </label>
       </section>
@@ -134,8 +167,8 @@ export function Settings() {
       </section>
 
       {/* Save */}
-      <button onClick={handleSave} className="btn-primary w-full">
-        {saved ? "保存しました！ / Saved!" : "保存 / Save Settings"}
+      <button onClick={handleSave} disabled={saving} className="btn-primary w-full">
+        {saved ? "✓ 保存しました！ / Saved!" : saving ? "保存中..." : "保存 / Save Settings"}
       </button>
     </div>
   );

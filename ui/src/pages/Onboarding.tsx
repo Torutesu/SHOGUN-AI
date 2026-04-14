@@ -67,13 +67,17 @@ function ApiKeyStep({ onNext, onBack }: { onNext: () => void; onBack: () => void
   const [skip, setSkip] = useState(false);
 
   const handleNext = async () => {
-    if (!skip && openaiKey) {
-      const settings = await api.loadSettings();
-      await api.saveSettings({
-        ...settings,
-        openai_api_key: openaiKey || null,
-        anthropic_api_key: anthropicKey || null,
+    try {
+      if (!skip && openaiKey) {
+        const settings = await api.loadSettings();
+        await api.saveSettings({
+          ...settings,
+          openai_api_key: openaiKey || null,
+          anthropic_api_key: anthropicKey || null,
       });
+      }
+    } catch {
+      // Continue even if save fails — keys can be set later in Settings
     }
     onNext();
   };

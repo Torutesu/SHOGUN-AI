@@ -6,21 +6,54 @@ export function PageView() {
   const { slug } = useParams<{ slug: string }>();
   const [page, setPage] = useState<PageData | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!slug) return;
     setLoading(true);
-    api.getPage(decodeURIComponent(slug)).then((p) => {
-      setPage(p);
-      setLoading(false);
-    });
+    setError(null);
+    api.getPage(decodeURIComponent(slug))
+      .then((p) => {
+        setPage(p);
+        setLoading(false);
+      })
+      .catch((err) => {
+        setError(err instanceof Error ? err.message : "Failed to load page");
+        setLoading(false);
+      });
   }, [slug]);
+
+  const handleDelete = async () => {
+    if (!confirm("このページを削除しますか？/ Delete this page?")) return;
+    setDeleting(true);
+    try {
+      await api.deletePage(page!.slug);
+      navigate("/");
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to delete");
+      setDeleting(false);
+    }
+  };
 
   if (loading) {
     return (
       <div className="p-8 flex items-center justify-center h-full">
-        <p className="text-shogun-muted">Loading...</p>
+        <div className="w-6 h-6 border-2 border-shogun-red border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="p-8 text-center space-y-4">
+        <div className="text-5xl">&#x26A0;&#xFE0F;</div>
+        <h2 className="text-xl font-semibold">Error</h2>
+        <p className="text-shogun-muted">{error}</p>
+        <button onClick={() => navigate(-1)} className="btn-secondary">
+          ← 戻る / Go Back
+        </button>
       </div>
     );
   }
@@ -46,13 +79,11 @@ export function PageView() {
   };
 
   return (
-    <div className="p-8 max-w-3xl space-y-6">
-      {/* Breadcrumb */}
+    <div className="p-8 max-w-3xl space-y-6 animate-fadeIn">
       <button onClick={() => navigate(-1)} className="text-shogun-muted hover:text-white text-sm">
         ← 戻る / Back
       </button>
 
-      {/* Header */}
       <div className="flex items-start gap-4">
         <span className="text-4xl">{typeIcon[page.page_type] ?? "\u{1F4C4}"}</span>
         <div>
@@ -66,21 +97,16 @@ export function PageView() {
         </div>
       </div>
 
-      {/* Tags */}
       {page.tags.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {page.tags.map((tag) => (
-            <span
-              key={tag}
-              className="text-xs px-3 py-1 rounded-full bg-shogun-red/20 text-shogun-red"
-            >
+            <span key={tag} className="text-xs px-3 py-1 rounded-full bg-shogun-red/20 text-shogun-red">
               {tag}
             </span>
           ))}
         </div>
       )}
 
-      {/* Compiled Truth */}
       <div className="card space-y-3">
         <h2 className="text-sm font-semibold text-shogun-muted uppercase tracking-wider">
           Compiled Truth
@@ -90,7 +116,6 @@ export function PageView() {
         </div>
       </div>
 
-      {/* Timeline */}
       {page.timeline && (
         <div className="card space-y-3">
           <h2 className="text-sm font-semibold text-shogun-muted uppercase tracking-wider">
@@ -107,7 +132,6 @@ export function PageView() {
         </div>
       )}
 
-      {/* Actions */}
       <div className="flex gap-3">
         <button
           onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)}
@@ -116,15 +140,11 @@ export function PageView() {
           編集 / Edit
         </button>
         <button
-          onClick={async () => {
-            if (confirm("このページを削除しますか？/ Delete this page?")) {
-              await api.deletePage(page.slug);
-              navigate("/");
-            }
-          }}
+          onClick={handleDelete}
+          disabled={deleting}
           className="btn-secondary text-red-400 hover:text-red-300"
         >
-          削除 / Delete
+          {deleting ? "削除中..." : "削除 / Delete"}
         </button>
       </div>
     </div>
