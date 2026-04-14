@@ -33,7 +33,7 @@ export type ActionTrigger =
   | { type: "manual" };
 
 export interface ActionStep {
-  type: "search" | "summarize" | "create_page" | "add_timeline" | "notify";
+  type: "search" | "summarize" | "create_page" | "add_timeline" | "notify" | "webhook" | "filter";
   params: Record<string, unknown>;
 }
 
@@ -231,6 +231,35 @@ export class ActionEngine {
       case "notify": {
         logger.info(`Action notification: ${step.params.title}`);
         return `Notification: ${step.params.title}`;
+      }
+
+      case "webhook": {
+        const url = String(step.params.url ?? "");
+        if (!url) return "Webhook: no URL";
+        try {
+          const res = await fetch(url, {
+            method: String(step.params.method ?? "POST"),
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              action: "shogun_pipe",
+              output: previousOutput.slice(0, 10000),
+              ...step.params.body as Record<string, unknown>,
+            }),
+          });
+          return `Webhook ${res.status}: ${url}`;
+        } catch (err) {
+          return `Webhook failed: ${err}`;
+        }
+      }
+
+      case "filter": {
+        // Filter/transform previous output using a regex or keyword
+        const pattern = step.params.pattern ? new RegExp(String(step.params.pattern), "gi") : null;
+        if (pattern) {
+          const matches = previousOutput.match(pattern);
+          return matches ? matches.join("\n") : "";
+        }
+        return previousOutput;
       }
 
       default:

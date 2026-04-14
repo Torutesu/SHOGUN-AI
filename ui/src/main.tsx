@@ -8,6 +8,8 @@ import { Search } from "./pages/Search";
 import { PageView } from "./pages/PageView";
 import { PageEdit } from "./pages/PageEdit";
 import { Chat } from "./pages/Chat";
+import { Timeline } from "./pages/Timeline";
+import { Pipes } from "./pages/Pipes";
 import { Settings } from "./pages/Settings";
 import "./index.css";
 
@@ -17,10 +19,12 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
       <Routes>
         <Route path="/" element={<App />}>
           <Route index element={<Dashboard />} />
+          <Route path="chat" element={<Chat />} />
           <Route path="search" element={<Search />} />
+          <Route path="timeline" element={<Timeline />} />
+          <Route path="pipes" element={<Pipes />} />
           <Route path="page/:slug" element={<PageView />} />
           <Route path="page/:slug/edit" element={<PageEdit />} />
-          <Route path="chat" element={<Chat />} />
           <Route path="settings" element={<Settings />} />
         </Route>
         <Route path="/onboarding" element={<Onboarding />} />

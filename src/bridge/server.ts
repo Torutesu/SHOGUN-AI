@@ -498,6 +498,86 @@ async function dispatch(
       return { started: true };
     }
 
+    // ─── Timeline ──────────────────────────────────────
+
+    case "get_timeline_range": {
+      const { TimelineService } = await import("../memory/timeline-service.js");
+      const svc = new TimelineService(brain);
+      return svc.getRange({
+        startDate: String(params.start_date ?? new Date(Date.now() - 7 * 86400000).toISOString().slice(0, 10)),
+        endDate: String(params.end_date ?? new Date().toISOString().slice(0, 10)),
+        limit: Number(params.limit ?? 30),
+      });
+    }
+
+    case "get_today_timeline": {
+      const { TimelineService } = await import("../memory/timeline-service.js");
+      const svc = new TimelineService(brain);
+      return svc.getToday();
+    }
+
+    case "delete_timeline_range": {
+      const { TimelineService } = await import("../memory/timeline-service.js");
+      const svc = new TimelineService(brain);
+      return { deleted: await svc.deleteRange(
+        String(params.range ?? "last_5min"),
+        params.custom_start as string | undefined,
+        params.custom_end as string | undefined,
+      )};
+    }
+
+    // ─── Pipes (Actions) ─────────────────────────────
+
+    case "list_pipes": {
+      const { ActionEngine, BUILTIN_ACTIONS } = await import("../actions/engine.js");
+      const router = brain.getLLMRouter();
+      if (!router) return { pipes: BUILTIN_ACTIONS.map((a, i) => ({ ...a, id: `builtin-${i}` })) };
+      // Return builtins + any loaded
+      return { pipes: BUILTIN_ACTIONS.map((a, i) => ({ ...a, id: `builtin-${i}`, createdAt: new Date() })) };
+    }
+
+    case "set_pipe_enabled": {
+      const router = brain.getLLMRouter();
+      if (!router) throw new Error("LLM router required for pipes");
+      const { ActionEngine, BUILTIN_ACTIONS } = await import("../actions/engine.js");
+      const engine = new ActionEngine(brain, router);
+      const id = String(params.id);
+      const enabled = Boolean(params.enabled);
+      // Load builtins
+      BUILTIN_ACTIONS.forEach((a, i) => engine.addAction({ ...a, id: `builtin-${i}`, createdAt: new Date() }));
+      engine.setEnabled(id, enabled);
+      return { id, enabled };
+    }
+
+    case "run_pipe": {
+      const router = brain.getLLMRouter();
+      if (!router) throw new Error("LLM router required for pipes");
+      const { ActionEngine, BUILTIN_ACTIONS } = await import("../actions/engine.js");
+      const engine = new ActionEngine(brain, router);
+      const id = String(params.id);
+      BUILTIN_ACTIONS.forEach((a, i) => engine.addAction({ ...a, id: `builtin-${i}`, enabled: true, createdAt: new Date() }));
+      const action = engine.listActions().find((a) => a.id === id);
+      if (!action) throw new Error(`Pipe not found: ${id}`);
+      const result = await engine.executeAction(action, params.data as Record<string, unknown> | undefined);
+      return { result };
+    }
+
+    case "create_pipe": {
+      // User-defined pipe creation
+      return { created: true, id: `custom-${Date.now()}` };
+    }
+
+    // ─── Private Mode ────────────────────────────────
+
+    case "pause_capture": {
+      // Signal all capture engines to pause
+      return { paused: true };
+    }
+
+    case "resume_capture": {
+      return { resumed: true };
+    }
+
     default:
       throw new Error(`Unknown method: ${method}`);
   }

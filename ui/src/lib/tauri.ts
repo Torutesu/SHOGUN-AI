@@ -135,6 +135,22 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
     delete_page: true,
     pause_capture: { paused: true },
     resume_capture: { resumed: true },
+    get_timeline_range: [
+      { date: new Date().toISOString().slice(0, 10), entries: [
+        { content: "[Chrome] SHOGUN documentation", source: "window_capture", created_at: new Date().toISOString() },
+        { content: "[VSCode] src/brain.ts", source: "window_capture", created_at: new Date().toISOString() },
+      ], pageSlug: `sessions/${new Date().toISOString().slice(0, 10)}`, totalEntries: 42, appBreakdown: { Chrome: 18, VSCode: 15, Slack: 9 }, sources: { window_capture: 30, clipboard: 8, ocr_capture: 4 } },
+    ],
+    get_today_timeline: { date: new Date().toISOString().slice(0, 10), entries: [], pageSlug: `sessions/${new Date().toISOString().slice(0, 10)}`, totalEntries: 0, appBreakdown: {}, sources: {} },
+    delete_timeline_range: { deleted: 0 },
+    list_pipes: { pipes: [
+      { id: "builtin-0", name: "Weekly Digest", description: "Compile weekly activity digest every Friday", trigger: { type: "schedule", cron: "0 18 * * 5", description: "Every Friday at 18:00" }, enabled: false },
+      { id: "builtin-1", name: "Meeting Action Items", description: "Extract action items after each meeting", trigger: { type: "event", event: "meeting_ended" }, enabled: true },
+      { id: "builtin-2", name: "New Contact Summary", description: "Auto-search related info for new contacts", trigger: { type: "event", event: "page_created" }, enabled: false },
+      { id: "builtin-3", name: "Daily Standup Prep", description: "Summarize yesterday's work for standup", trigger: { type: "schedule", cron: "0 9 * * 1-5", description: "Weekdays at 09:00" }, enabled: false },
+    ] },
+    set_pipe_enabled: { id: "", enabled: true },
+    run_pipe: { result: "Pipe executed successfully. Generated summary of 5 key events." },
   };
   return (mocks[cmd] ?? null) as T;
 }
@@ -167,6 +183,17 @@ export const api = {
   resumeCapture: () => invoke<unknown>("resume_capture"),
   startOCRCapture: () => invoke<unknown>("start_ocr_capture"),
   startAudioCapture: () => invoke<unknown>("start_audio_capture"),
+  // Timeline
+  getTimelineRange: (startDate: string, endDate: string, limit?: number) =>
+    invoke<unknown>("get_timeline_range", { start_date: startDate, end_date: endDate, limit }),
+  getTodayTimeline: () => invoke<unknown>("get_today_timeline"),
+  deleteTimelineRange: (range: string) => invoke<unknown>("delete_timeline_range", { range }),
+
+  // Pipes
+  listPipes: () => invoke<unknown>("list_pipes"),
+  setPipeEnabled: (id: string, enabled: boolean) => invoke<unknown>("set_pipe_enabled", { id, enabled }),
+  runPipe: (id: string) => invoke<unknown>("run_pipe", { id }),
+
   saveSettings: (settings: AppSettings) =>
     invoke<void>("save_settings", { settings }),
   loadSettings: () => invoke<AppSettings>("load_settings"),

@@ -25,8 +25,16 @@ export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup, Japanese
 export { DreamCycle, scheduleDreamCycle, EntityExtractor, MemoryConsolidator } from "./dream/index.js";
 
 // Capture
-export { PassiveCaptureEngine, OCRCaptureEngine, AudioCaptureEngine } from "./capture/index.js";
-export type { CaptureEvent, PassiveCaptureOptions, OCRResult, TranscriptSegment } from "./capture/index.js";
+export { PassiveCaptureEngine, OCRCaptureEngine, AudioCaptureEngine, AdaptiveCaptureController } from "./capture/index.js";
+export type { CaptureEvent, PassiveCaptureOptions, OCRResult, TranscriptSegment, SystemState } from "./capture/index.js";
+
+// Agents (L1/L2/L3)
+export { classifyActionLevel, ApprovalQueue } from "./agents/index.js";
+export type { AgentLevel, AgentAction } from "./agents/index.js";
+
+// Timeline
+export { TimelineService } from "./memory/timeline-service.js";
+export type { TimelineDay } from "./memory/timeline-service.js";
 
 // Chat
 export { ChatEngine } from "./chat/index.js";
