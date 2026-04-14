@@ -6,3 +6,4 @@ export { AudioCaptureEngine } from "./audio.js";
 export type { TranscriptSegment, AudioCaptureOptions } from "./audio.js";
 export { AdaptiveCaptureController } from "./adaptive.js";
 export type { SystemState } from "./adaptive.js";
+export { SpeakerDiarizer } from "./diarization.js";

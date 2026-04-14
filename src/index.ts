@@ -25,7 +25,7 @@ export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup, Japanese
 export { DreamCycle, scheduleDreamCycle, EntityExtractor, MemoryConsolidator } from "./dream/index.js";
 
 // Capture
-export { PassiveCaptureEngine, OCRCaptureEngine, AudioCaptureEngine, AdaptiveCaptureController } from "./capture/index.js";
+export { PassiveCaptureEngine, OCRCaptureEngine, AudioCaptureEngine, AdaptiveCaptureController, SpeakerDiarizer } from "./capture/index.js";
 export type { CaptureEvent, PassiveCaptureOptions, OCRResult, TranscriptSegment, SystemState } from "./capture/index.js";
 
 // Agents (L1/L2/L3)
@@ -66,7 +66,9 @@ export type { PIIDetection, PIIFilterOptions } from "./security/index.js";
 
 // Integrations
 export {
-  SlackIntegration, GitHubIntegration, GoogleCalendarIntegration, BrainExporter,
+  SlackIntegration, GitHubIntegration, GoogleCalendarIntegration,
+  GmailIntegration, NotionIntegration, LinearIntegration,
+  BrainExporter,
   OAuthTokenManager, createGoogleOAuth, createSlackOAuth, createGitHubOAuth,
   paginatedFetch,
 } from "./integrations/index.js";

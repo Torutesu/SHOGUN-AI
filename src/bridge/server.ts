@@ -329,6 +329,40 @@ async function dispatch(
       return { ...issueResult, commits: commitResult.commits };
     }
 
+    case "ingest_gmail": {
+      const { GmailIntegration } = await import("../integrations/gmail.js");
+      const { createGoogleOAuth } = await import("../integrations/oauth.js");
+      const oauth = createGoogleOAuth({
+        clientId: String(params.client_id ?? ""),
+        clientSecret: String(params.client_secret ?? ""),
+        accessToken: String(params.access_token ?? ""),
+        refreshToken: String(params.refresh_token ?? ""),
+      });
+      const gmail = new GmailIntegration(brain, oauth);
+      return gmail.ingestRecent({ maxResults: Number(params.limit ?? 50) });
+    }
+
+    case "ingest_notion": {
+      const { NotionIntegration } = await import("../integrations/notion.js");
+      const { OAuthTokenManager } = await import("../integrations/oauth.js");
+      const auth = new OAuthTokenManager({
+        clientId: "", clientSecret: "", tokenUrl: "",
+        accessToken: String(params.token ?? ""),
+        refreshToken: "",
+      });
+      const notion = new NotionIntegration(brain, auth);
+      return notion.ingestRecentPages({ limit: Number(params.limit ?? 50) });
+    }
+
+    case "ingest_linear": {
+      const { LinearIntegration } = await import("../integrations/linear.js");
+      const linear = new LinearIntegration(brain, String(params.api_key ?? ""));
+      return linear.ingestIssues({
+        limit: Number(params.limit ?? 50),
+        teamKey: params.team_key as string | undefined,
+      });
+    }
+
     case "ingest_google_calendar": {
       const token = String(params.token ?? "");
       if (!token) throw new Error("token required");

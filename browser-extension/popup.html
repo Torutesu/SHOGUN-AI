@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <style>
+    body { width: 300px; padding: 16px; font-family: Inter, sans-serif; background: #0A0A0A; color: #F0EDE8; margin: 0; }
+    h1 { font-size: 16px; margin: 0 0 8px; color: #C9A84C; }
+    p { font-size: 12px; color: #8A8580; margin: 4px 0; }
+    .stat { display: flex; justify-content: space-between; padding: 6px 0; border-bottom: 1px solid #1F1F1F; font-size: 13px; }
+    .stat-value { color: #C9A84C; font-weight: 600; }
+    button { width: 100%; padding: 8px; margin-top: 12px; background: #C9A84C; color: #0A0A0A; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 13px; }
+    button:hover { background: #E2C97E; }
+    .status { display: flex; align-items: center; gap: 6px; margin: 8px 0; }
+    .dot { width: 6px; height: 6px; border-radius: 50%; background: #3DAA6E; }
+    .dot.off { background: #3D3B38; }
+  </style>
+</head>
+<body>
+  <h1>SHOGUN</h1>
+  <div class="status">
+    <div class="dot" id="status-dot"></div>
+    <p id="status-text">Capturing</p>
+  </div>
+  <div id="stats">
+    <div class="stat"><span>Queue</span><span class="stat-value" id="queue-count">0</span></div>
+    <div class="stat"><span>Today</span><span class="stat-value" id="today-count">0</span></div>
+  </div>
+  <button id="toggle">Pause Capture</button>
+  <script src="src/popup.js"></script>
+</body>
+</html>
