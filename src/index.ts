@@ -59,6 +59,13 @@ export {
 } from "./integrations/index.js";
 export type { OAuthConfig, OAuthTokens } from "./integrations/index.js";
 
+// Identity
+export { SHOGUN_IDENTITY, SYSTEM_PROMPTS, getGreeting, getMemoryInsight } from "./identity.js";
+
+// Growth
+export { ViralEngine, calculateIntelligenceScore } from "./growth/index.js";
+export type { ShareableCard } from "./growth/index.js";
+
 // Logger
 export { logger } from "./logger.js";
 

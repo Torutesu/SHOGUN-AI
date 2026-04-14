@@ -1,6 +1,7 @@
 import type { ShogunBrain } from "../brain.js";
 import type { LLMRouter } from "../llm/router.js";
 import type { SearchResult } from "../types.js";
+import { SYSTEM_PROMPTS } from "../identity.js";
 import { logger } from "../logger.js";
 
 /**
@@ -33,16 +34,7 @@ export interface ChatOptions {
   includeTimeline?: boolean;
 }
 
-const SYSTEM_PROMPT = `You are SHOGUN, an AI memory assistant. You have access to the user's personal knowledge base containing information about people, companies, concepts, and daily sessions.
-
-When answering questions:
-- Use ONLY the provided context from the user's memory. Do not make up information.
-- If the memory doesn't contain relevant information, say so honestly.
-- Always cite your sources by mentioning the page title and slug.
-- Be concise and direct.
-- Answer in the same language the user uses (Japanese or English).
-
-Context from the user's memory will be provided between <memory> tags.`;
+const SYSTEM_PROMPT = SYSTEM_PROMPTS.chat;
 
 export class ChatEngine {
   private history: ChatMessage[] = [];

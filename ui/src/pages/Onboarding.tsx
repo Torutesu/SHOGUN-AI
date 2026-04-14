@@ -341,20 +341,26 @@ function CompleteStep({ onFinish }: { onFinish: () => void }) {
       <div className="space-y-3">
         <p className="text-sm text-shogun-muted">次のステップ / Next Steps:</p>
         <div className="space-y-2 text-left">
-          <div className="card flex items-center gap-3 cursor-pointer hover:border-shogun-red/50">
-            <span>&#x1F916;</span>
+          <button
+            onClick={handleFinish}
+            className="card-interactive flex items-center gap-3 w-full text-left"
+          >
+            <span>&#x1F9E0;</span>
             <div>
-              <p className="font-medium">Claude Desktopと連携</p>
-              <p className="text-xs text-shogun-muted">Connect Claude Desktop</p>
+              <p className="font-medium">メモリに聞く / Ask Memory</p>
+              <p className="text-xs text-shogun-muted">AIとチャットしてメモリを活用</p>
             </div>
-          </div>
-          <div className="card flex items-center gap-3 cursor-pointer hover:border-shogun-red/50">
+          </button>
+          <button
+            onClick={handleFinish}
+            className="card-interactive flex items-center gap-3 w-full text-left"
+          >
             <span>&#x1F319;</span>
             <div>
               <p className="font-medium">Dream Cycleを設定</p>
               <p className="text-xs text-shogun-muted">Configure Dream Cycle</p>
             </div>
-          </div>
+          </button>
         </div>
       </div>
 
