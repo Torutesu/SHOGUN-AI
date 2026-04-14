@@ -36,14 +36,26 @@ async function main() {
   const dataDir = process.env.SHOGUN_DATA_DIR ?? "./pgdata";
   const openaiKey = process.env.OPENAI_API_KEY;
   const anthropicKey = process.env.ANTHROPIC_API_KEY;
-  const piiEnabled = process.env.SHOGUN_PII_REMOVAL === "true";
+  const embeddingTier = process.env.SHOGUN_EMBEDDING_TIER ?? "balanced";
+  const encryptionPassphrase = process.env.SHOGUN_ENCRYPTION_PASSPHRASE;
+  const piiEnabled = process.env.SHOGUN_PII_REMOVAL !== "false"; // Default ON
   const piiFilter = new PIIFilter({ enabled: piiEnabled, logDetections: false });
 
   // Configure brain with all available providers
-  const brainOptions: ShogunBrainOptions = { dataDir };
+  const brainOptions: ShogunBrainOptions = {
+    dataDir,
+    encryptionPassphrase: encryptionPassphrase || undefined,
+  };
+
+  // Map tier to dimensions
+  const tierDims: Record<string, number> = { fast: 256, balanced: 1536, full: 3072 };
+  const dimensions = tierDims[embeddingTier] ?? 1536;
 
   if (openaiKey) {
-    brainOptions.embeddingProvider = new OpenAIEmbeddingProvider({ apiKey: openaiKey });
+    brainOptions.embeddingProvider = new OpenAIEmbeddingProvider({
+      apiKey: openaiKey,
+      dimensions,
+    });
   }
 
   // Build LLM router with available providers

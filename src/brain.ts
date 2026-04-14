@@ -175,11 +175,21 @@ export class ShogunBrain {
   }
 
   async syncAll(force?: boolean): Promise<{ synced: number; skipped: number }> {
-    const pages = await this.pages.listPages({ limit: 10000 });
+    // Paginated fetch to handle brains with >10k pages
+    let allPages: { id: number; slug: string }[] = [];
+    let offset = 0;
+    const batchSize = 1000;
+    while (true) {
+      const batch = await this.pages.listPages({ limit: batchSize, offset });
+      allPages.push(...batch);
+      if (batch.length < batchSize) break;
+      offset += batchSize;
+    }
+
     let synced = 0;
     let skipped = 0;
 
-    const queue = [...pages];
+    const queue = [...allPages];
     const inFlight: Promise<void>[] = [];
 
     const processPage = async (page: { id: number; slug: string }) => {
@@ -295,17 +305,18 @@ export class ShogunBrain {
        WHERE status = 'completed' ORDER BY completed_at DESC LIMIT 1`
     ).catch(() => null);
 
-    // Embedding cache stats
-    let cacheStats = null;
-    if (this._cachedProvider) {
-      cacheStats = await this._cachedProvider.getCacheStats();
-    }
+    // Broken links: links where target page was deleted
+    const [brokenLinks] = await this.engine.query<{ count: number }>(
+      `SELECT COUNT(*)::int as count FROM links l
+       LEFT JOIN pages p ON l.to_page_id = p.id
+       WHERE p.id IS NULL`
+    );
 
     return {
       embed_coverage: embedCoverage,
       stale_pages: stalePages?.count ?? 0,
       orphan_pages: orphanPages?.count ?? 0,
-      broken_links: 0,
+      broken_links: brokenLinks?.count ?? 0,
       last_dream_cycle: lastCycle?.completed_at ?? null,
     };
   }

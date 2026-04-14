@@ -6,3 +6,7 @@ export {
   slugSchema, dateSchema, tagSchema, limitSchema, depthSchema,
   sanitizeDataDir, sanitizeError,
 } from "./validation.js";
+export {
+  isBiometricAvailable, registerBiometric, verifyBiometric,
+} from "./biometric.js";
+export type { BiometricCredential } from "./biometric.js";

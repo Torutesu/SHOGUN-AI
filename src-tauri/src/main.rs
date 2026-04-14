@@ -8,9 +8,48 @@ fn main() {
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
         .setup(|app| {
-            // Initialize the Node.js bridge sidecar
-            let _ = app; // app handle available for future use
-            if let Err(e) = commands::init_bridge("./pgdata", false) {
+            // Read settings from store to configure the bridge
+            use tauri_plugin_store::StoreExt;
+            let store = app.store("settings.json").ok();
+
+            let mut data_dir = "./pgdata".to_string();
+            let mut pii_removal = true; // Default ON for privacy-first
+            let mut openai_key: Option<String> = None;
+            let mut anthropic_key: Option<String> = None;
+            let mut embedding_tier = "balanced".to_string();
+            let mut encryption_passphrase: Option<String> = None;
+
+            if let Some(ref s) = store {
+                if let Some(val) = s.get("settings") {
+                    if let Some(dir) = val.get("data_dir").and_then(|v| v.as_str()) {
+                        data_dir = dir.to_string();
+                    }
+                    if let Some(pii) = val.get("pii_removal").and_then(|v| v.as_bool()) {
+                        pii_removal = pii;
+                    }
+                    if let Some(key) = val.get("openai_api_key").and_then(|v| v.as_str()) {
+                        if !key.is_empty() { openai_key = Some(key.to_string()); }
+                    }
+                    if let Some(key) = val.get("anthropic_api_key").and_then(|v| v.as_str()) {
+                        if !key.is_empty() { anthropic_key = Some(key.to_string()); }
+                    }
+                    if let Some(tier) = val.get("embedding_tier").and_then(|v| v.as_str()) {
+                        embedding_tier = tier.to_string();
+                    }
+                    if val.get("encryption_enabled").and_then(|v| v.as_bool()).unwrap_or(false) {
+                        // Use a derived passphrase from the data dir (user can change later)
+                        encryption_passphrase = Some(format!("shogun-{}", data_dir));
+                    }
+                }
+            }
+
+            if let Err(e) = commands::init_bridge(
+                &data_dir, pii_removal,
+                openai_key.as_deref(),
+                anthropic_key.as_deref(),
+                &embedding_tier,
+                encryption_passphrase.as_deref(),
+            ) {
                 eprintln!("Warning: Bridge init failed: {}", e);
             }
             Ok(())

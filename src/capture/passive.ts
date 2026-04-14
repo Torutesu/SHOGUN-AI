@@ -23,13 +23,21 @@ export interface CaptureEvent {
   timestamp: Date;
 }
 
+export interface CaptureError {
+  type: "permission_required" | "capture_failed";
+  platform: string;
+  message: string;
+}
+
 export interface PassiveCaptureOptions {
   /** Polling interval in milliseconds (default: 5000) */
   intervalMs?: number;
-  /** PII filter instance */
+  /** PII filter instance (default: enabled) */
   piiFilter?: PIIFilter;
   /** Callback for each captured event */
   onCapture: (event: CaptureEvent) => Promise<void>;
+  /** Callback for errors that need user attention */
+  onError?: (error: CaptureError) => void;
   /** App names to exclude from capture */
   excludeApps?: string[];
   /** Minimum clipboard content length to capture */
@@ -40,17 +48,21 @@ export class PassiveCaptureEngine {
   private intervalMs: number;
   private piiFilter: PIIFilter;
   private onCapture: (event: CaptureEvent) => Promise<void>;
+  private onError: (error: CaptureError) => void;
   private excludeApps: Set<string>;
   private minClipboardLength: number;
   private timer: NodeJS.Timeout | null = null;
   private lastClipboard = "";
   private lastWindow = "";
   private platform: string;
+  private permissionChecked = false;
 
   constructor(options: PassiveCaptureOptions) {
     this.intervalMs = options.intervalMs ?? 5000;
-    this.piiFilter = options.piiFilter ?? new PIIFilter({ enabled: false });
+    // PII filter defaults to ENABLED for privacy-first capture
+    this.piiFilter = options.piiFilter ?? new PIIFilter({ enabled: true });
     this.onCapture = options.onCapture;
+    this.onError = options.onError ?? ((err) => logger.warn(`Capture error: ${err.message}`));
     this.excludeApps = new Set(
       (options.excludeApps ?? [
         "1Password", "Bitwarden", "KeePass", "LastPass",
@@ -64,9 +76,13 @@ export class PassiveCaptureEngine {
   /**
    * Start passive capture polling.
    */
-  start(): void {
+  async start(): Promise<void> {
     if (this.timer) return;
-    logger.info("Passive capture started", { intervalMs: this.intervalMs });
+
+    // Check platform permissions before starting
+    await this.checkPermissions();
+
+    logger.info("Passive capture started", { intervalMs: this.intervalMs, platform: this.platform });
 
     this.timer = setInterval(() => {
       this.poll().catch((err) => {
@@ -83,6 +99,32 @@ export class PassiveCaptureEngine {
       clearInterval(this.timer);
       this.timer = null;
       logger.info("Passive capture stopped");
+    }
+  }
+
+  /**
+   * Check platform-specific permissions and notify user if needed.
+   */
+  private async checkPermissions(): Promise<void> {
+    if (this.permissionChecked) return;
+    this.permissionChecked = true;
+
+    if (this.platform === "darwin") {
+      try {
+        // Test if Accessibility API is accessible
+        await execAsync(
+          `osascript -e 'tell application "System Events" to get name of first application process whose frontmost is true'`,
+          { timeout: 5000 }
+        );
+      } catch {
+        this.onError({
+          type: "permission_required",
+          platform: "macOS",
+          message:
+            "Accessibility permission required. Go to System Preferences → Privacy & Security → Accessibility and enable SHOGUN.",
+        });
+        logger.warn("macOS Accessibility permission not granted — window capture disabled");
+      }
     }
   }
 
@@ -132,56 +174,59 @@ export class PassiveCaptureEngine {
         appName: info.appName,
         timestamp: new Date(),
       });
-    } catch {
-      // Window info failures are expected on some platforms
+    } catch (err) {
+      // Log specific errors instead of swallowing silently
+      logger.debug(`Window capture failed: ${err}`);
     }
   }
 
   private async readClipboard(): Promise<string> {
     switch (this.platform) {
       case "darwin":
-        return (await execAsync("pbpaste")).stdout;
+        return (await execAsync("pbpaste", { timeout: 3000 })).stdout;
       case "linux":
-        return (await execAsync("xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null")).stdout;
+        return (await execAsync("xclip -selection clipboard -o 2>/dev/null || xsel --clipboard --output 2>/dev/null", { timeout: 3000 })).stdout;
       case "win32":
-        return (await execAsync("powershell -command Get-Clipboard")).stdout;
+        return (await execAsync("powershell -command Get-Clipboard", { timeout: 3000 })).stdout;
       default:
         return "";
     }
   }
 
   private async getActiveWindow(): Promise<{ appName: string; title: string } | null> {
-    try {
-      switch (this.platform) {
-        case "darwin": {
-          const { stdout } = await execAsync(
-            `osascript -e 'tell application "System Events" to get {name, title} of first application process whose frontmost is true'`
-          );
-          const parts = stdout.trim().split(", ");
-          return { appName: parts[0] ?? "", title: parts[1] ?? "" };
-        }
-        case "linux": {
-          const { stdout: winId } = await execAsync("xdotool getactivewindow 2>/dev/null");
-          const { stdout: name } = await execAsync(`xdotool getactivewindow getwindowname 2>/dev/null`);
-          const { stdout: pid } = await execAsync(`xdotool getactivewindow getwindowpid 2>/dev/null`);
-          let appName = "";
-          try {
-            const { stdout: comm } = await execAsync(`cat /proc/${pid.trim()}/comm 2>/dev/null`);
-            appName = comm.trim();
-          } catch { appName = "unknown"; }
-          return { appName, title: name.trim() };
-        }
-        case "win32": {
-          const { stdout } = await execAsync(
-            `powershell -command "(Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -First 1).MainWindowTitle"`
-          );
-          return { appName: "Windows", title: stdout.trim() };
-        }
-        default:
-          return null;
+    switch (this.platform) {
+      case "darwin": {
+        const { stdout } = await execAsync(
+          `osascript -e 'tell application "System Events" to get {name, title} of first application process whose frontmost is true'`,
+          { timeout: 3000 }
+        );
+        const parts = stdout.trim().split(", ");
+        return { appName: parts[0] ?? "", title: parts[1] ?? "" };
       }
-    } catch {
-      return null;
+      case "linux": {
+        const { stdout: name } = await execAsync("xdotool getactivewindow getwindowname 2>/dev/null", { timeout: 3000 });
+        const { stdout: pid } = await execAsync("xdotool getactivewindow getwindowpid 2>/dev/null", { timeout: 3000 });
+        let appName = "unknown";
+        try {
+          const { stdout: comm } = await execAsync(`cat /proc/${pid.trim()}/comm 2>/dev/null`);
+          appName = comm.trim();
+        } catch { /* keep "unknown" */ }
+        return { appName, title: name.trim() };
+      }
+      case "win32": {
+        // Get both the process name and window title on Windows
+        const { stdout } = await execAsync(
+          `powershell -command "$p = Get-Process | Where-Object {$_.MainWindowTitle -ne ''} | Select-Object -First 1; if ($p) { Write-Output ($p.ProcessName + '|||' + $p.MainWindowTitle) }"`,
+          { timeout: 3000 }
+        );
+        const parts = stdout.trim().split("|||");
+        return {
+          appName: parts[0] ?? "unknown",
+          title: parts[1] ?? stdout.trim(),
+        };
+      }
+      default:
+        return null;
     }
   }
 }
