@@ -331,6 +331,66 @@ pub async fn ingest_gmail(access_token: String, refresh_token: String, client_id
     bridge_call("ingest_gmail", serde_json::json!({ "access_token": access_token, "refresh_token": refresh_token, "client_id": client_id, "client_secret": client_secret }))
 }
 
+// ─── Native Capture Commands ───────────────────────────────
+
+use crate::capture::scheduler::CaptureState;
+use crate::capture::accessibility;
+use std::sync::Arc;
+
+#[tauri::command]
+pub async fn native_start_capture(
+    state: tauri::State<'_, Arc<CaptureState>>,
+    interval_secs: Option<u64>,
+) -> Result<Value, String> {
+    if let Some(secs) = interval_secs {
+        state.set_interval(secs);
+    }
+    state.start();
+    Ok(serde_json::json!({
+        "started": true,
+        "interval_secs": state.interval_secs.load(std::sync::atomic::Ordering::Relaxed)
+    }))
+}
+
+#[tauri::command]
+pub async fn native_stop_capture(
+    state: tauri::State<'_, Arc<CaptureState>>,
+) -> Result<Value, String> {
+    state.stop();
+    Ok(serde_json::json!({ "stopped": true }))
+}
+
+#[tauri::command]
+pub async fn get_capture_status(
+    state: tauri::State<'_, Arc<CaptureState>>,
+) -> Result<Value, String> {
+    let running = state.running.load(std::sync::atomic::Ordering::Relaxed);
+    let interval = state.interval_secs.load(std::sync::atomic::Ordering::Relaxed);
+    let count = state.capture_count.load(std::sync::atomic::Ordering::Relaxed);
+    let last = state.last_captured_at.lock().map_err(|e| e.to_string())?.clone();
+
+    Ok(serde_json::json!({
+        "running": running,
+        "interval_secs": interval,
+        "capture_count": count,
+        "last_captured_at": last,
+    }))
+}
+
+#[tauri::command]
+pub async fn check_permissions() -> Result<Value, String> {
+    let has_accessibility = accessibility::check_accessibility_permission();
+    Ok(serde_json::json!({
+        "accessibility": has_accessibility,
+    }))
+}
+
+#[tauri::command]
+pub async fn open_accessibility_settings() -> Result<(), String> {
+    accessibility::open_accessibility_settings();
+    Ok(())
+}
+
 #[tauri::command]
 pub async fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
     let store = app.store("settings.json").map_err(|e| e.to_string())?;

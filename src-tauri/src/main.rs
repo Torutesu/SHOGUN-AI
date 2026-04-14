@@ -2,11 +2,20 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod commands;
+mod capture;
+
+use std::sync::Arc;
+use tauri::Manager;
+use capture::scheduler::CaptureState;
 
 fn main() {
+    let capture_state = Arc::new(CaptureState::new());
+
+    let cs_for_tauri = Arc::clone(&capture_state);
     tauri::Builder::default()
         .plugin(tauri_plugin_shell::init())
         .plugin(tauri_plugin_store::Builder::default().build())
+        .manage(cs_for_tauri)
         .setup(|app| {
             use tauri_plugin_store::StoreExt;
             let store = app.store("settings.json").ok();
@@ -41,37 +50,23 @@ fn main() {
                 }
             }
 
-            // 1. Start the bridge
+            // Start the Node.js bridge
             if let Err(e) = commands::init_bridge(
                 &data_dir, pii_removal,
-                openai_key.as_deref(),
-                anthropic_key.as_deref(),
-                &embedding_tier,
-                encryption_passphrase.as_deref(),
+                openai_key.as_deref(), anthropic_key.as_deref(),
+                &embedding_tier, encryption_passphrase.as_deref(),
             ) {
-                eprintln!("Warning: Bridge init failed: {}", e);
-            } else {
-                // 2. Auto-start capture after bridge is ready
-                std::thread::spawn(|| {
-                    // Wait for bridge to initialize
-                    std::thread::sleep(std::time::Duration::from_secs(3));
-
-                    // Start passive capture (clipboard + window title)
-                    if let Err(e) = commands::bridge_call_pub("start_capture", serde_json::json!({ "interval_ms": 5000 })) {
-                        eprintln!("Warning: Capture start failed: {}", e);
-                    }
-
-                    // Start OCR capture (accessibility API)
-                    if let Err(e) = commands::bridge_call_pub("start_ocr_capture", serde_json::json!({ "interval_ms": 3000 })) {
-                        eprintln!("Warning: OCR capture start failed: {}", e);
-                    }
-
-                    // Start audio capture (meeting detection)
-                    if let Err(e) = commands::bridge_call_pub("start_audio_capture", serde_json::json!({})) {
-                        eprintln!("Warning: Audio capture start failed: {}", e);
-                    }
-                });
+                eprintln!("[SHOGUN] Bridge init failed: {}", e);
             }
+
+            // Auto-start capture after bridge is ready
+            let capture: Arc<CaptureState> = app.handle().state::<Arc<CaptureState>>().inner().clone();
+            std::thread::spawn(move || {
+                // Wait for bridge to initialize
+                std::thread::sleep(std::time::Duration::from_secs(5));
+                eprintln!("[SHOGUN] Starting capture...");
+                capture.start();
+            });
 
             Ok(())
         })
@@ -94,6 +89,12 @@ fn main() {
             commands::resume_capture,
             commands::start_ocr_capture,
             commands::start_audio_capture,
+            // Native capture commands
+            commands::native_start_capture,
+            commands::native_stop_capture,
+            commands::get_capture_status,
+            commands::check_permissions,
+            commands::open_accessibility_settings,
             // Chat
             commands::chat,
             // Export/Import
