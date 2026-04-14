@@ -50,31 +50,56 @@ export class MemoryConsolidator {
    * Find pages that might be duplicates based on title similarity.
    */
   async findCandidates(limit: number = 20): Promise<MergeCandidate[]> {
-    // Find pages with similar titles using trigram similarity
-    // PGLite may not have pg_trgm, so use Levenshtein-based approach
-    const pages = await this.engine.query<Page>(
-      "SELECT * FROM pages ORDER BY title"
-    );
-
+    // Group pages by type, then compare within groups using a bigram index.
+    // This avoids the O(n²) full cross-join by bucketing first.
+    const types = ["person", "company", "session", "concept"];
     const candidates: MergeCandidate[] = [];
 
-    for (let i = 0; i < pages.length; i++) {
-      for (let j = i + 1; j < pages.length; j++) {
-        // Same type only
-        if (pages[i].type !== pages[j].type) continue;
+    for (const type of types) {
+      const pages = await this.engine.query<Page>(
+        "SELECT * FROM pages WHERE type = $1 ORDER BY title",
+        [type]
+      );
 
-        const sim = titleSimilarity(pages[i].title, pages[j].title);
-        if (sim > 0.7) {
-          candidates.push({
-            pageA: pages[i],
-            pageB: pages[j],
-            similarity: sim,
-          });
+      // Build bigram index for fast lookup
+      const bigramIndex = new Map<string, number[]>();
+      for (let i = 0; i < pages.length; i++) {
+        const bigrams = getBigrams(pages[i].title.toLowerCase());
+        for (const bg of bigrams) {
+          const list = bigramIndex.get(bg) ?? [];
+          list.push(i);
+          bigramIndex.set(bg, list);
+        }
+      }
+
+      // Find candidate pairs: only compare pages that share at least one bigram
+      const checked = new Set<string>();
+      for (let i = 0; i < pages.length; i++) {
+        const bigrams = getBigrams(pages[i].title.toLowerCase());
+        const neighborSet = new Set<number>();
+        for (const bg of bigrams) {
+          for (const j of bigramIndex.get(bg) ?? []) {
+            if (j > i) neighborSet.add(j);
+          }
+        }
+
+        for (const j of neighborSet) {
+          const key = `${i}:${j}`;
+          if (checked.has(key)) continue;
+          checked.add(key);
+
+          const sim = titleSimilarity(pages[i].title, pages[j].title);
+          if (sim > 0.7) {
+            candidates.push({
+              pageA: pages[i],
+              pageB: pages[j],
+              similarity: sim,
+            });
+          }
         }
       }
     }
 
-    // Sort by similarity descending
     candidates.sort((a, b) => b.similarity - a.similarity);
     return candidates.slice(0, limit);
   }

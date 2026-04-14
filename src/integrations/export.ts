@@ -48,40 +48,52 @@ export class BrainExporter {
    */
   async exportAll(): Promise<ExportData> {
     const allPages = await this.brain.pages.listPages({ limit: 100000 });
-    const exportPages: ExportPage[] = [];
 
-    for (const page of allPages) {
-      const tags = await this.brain.tags.getTagsForPage(page.id);
-      const entries = await this.brain.timeline.getEntries(page.id, { limit: 10000 });
+    // Batch fetch all tags, timeline entries, and links in 3 queries (not N+1)
+    const allTags = await this.brain.engine.query<{ page_id: number; tag: string }>(
+      "SELECT page_id, tag FROM tags ORDER BY page_id, tag"
+    );
+    const allEntries = await this.brain.engine.query<{
+      page_id: number; entry_date: string; content: string; source: string | null;
+    }>(
+      "SELECT page_id, entry_date, content, source FROM timeline_entries ORDER BY page_id, entry_date"
+    );
+    const allLinks = await this.brain.engine.query<{
+      from_slug: string; to_slug: string; link_type: string;
+    }>(
+      `SELECT p1.slug as from_slug, p2.slug as to_slug, l.link_type
+       FROM links l
+       JOIN pages p1 ON l.from_page_id = p1.id
+       JOIN pages p2 ON l.to_page_id = p2.id`
+    );
 
-      exportPages.push({
-        slug: page.slug,
-        type: page.type,
-        title: page.title,
-        compiled_truth: page.compiled_truth,
-        timeline: page.timeline,
-        frontmatter: page.frontmatter,
-        tags,
-        timeline_entries: entries.map((e) => ({
-          entry_date: e.entry_date,
-          content: e.content,
-          source: e.source,
-        })),
-      });
+    // Index by page_id
+    const tagsByPage = new Map<number, string[]>();
+    for (const t of allTags) {
+      const list = tagsByPage.get(t.page_id) ?? [];
+      list.push(t.tag);
+      tagsByPage.set(t.page_id, list);
     }
 
-    // Export links
-    const links: { from_slug: string; to_slug: string; link_type: string }[] = [];
-    for (const page of allPages) {
-      const outgoing = await this.brain.links.getOutgoingLinks(page.id);
-      for (const link of outgoing) {
-        links.push({
-          from_slug: page.slug,
-          to_slug: link.to_slug,
-          link_type: link.link_type,
-        });
-      }
+    const entriesByPage = new Map<number, { entry_date: string; content: string; source: string | null }[]>();
+    for (const e of allEntries) {
+      const list = entriesByPage.get(e.page_id) ?? [];
+      list.push({ entry_date: e.entry_date, content: e.content, source: e.source });
+      entriesByPage.set(e.page_id, list);
     }
+
+    const exportPages: ExportPage[] = allPages.map((page) => ({
+      slug: page.slug,
+      type: page.type,
+      title: page.title,
+      compiled_truth: page.compiled_truth,
+      timeline: page.timeline,
+      frontmatter: page.frontmatter,
+      tags: tagsByPage.get(page.id) ?? [],
+      timeline_entries: entriesByPage.get(page.id) ?? [],
+    }));
+
+    const links = allLinks;
 
     logger.info(`Exported ${exportPages.length} pages, ${links.length} links`);
 

@@ -28,6 +28,8 @@ fn main() {
             commands::add_clipboard_entry,
             commands::add_window_entry,
             commands::export_brain,
+            commands::import_brain,
+            commands::start_capture,
             commands::save_settings,
             commands::load_settings,
         ])

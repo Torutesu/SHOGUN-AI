@@ -111,7 +111,7 @@ SHOGUN Memory Layer
 │   ├── Multi-query expansion
 │   └── 4-layer deduplication
 │
-├── MCP Server (21 tools)
+├── MCP Server (20 tools)
 │   ├── Read (10): get_page, list_pages, search, query, ...
 │   ├── Write (7): put_page, delete_page, add_tag, ...
 │   └── Admin (3): revert_version, sync_brain, dream_cycle
@@ -271,7 +271,7 @@ src/
 │   └── pipeline.ts       # 統合パイプライン
 ├── mcp/                  # MCP サーバー
 │   ├── server.ts         # サーバー本体
-│   └── tools/            # 21 ツール定義
+│   └── tools/            # 20 ツール定義
 ├── dream/                # Dream Cycle
 │   └── cycle.ts          # 夜間バッチ
 └── index.ts              # パブリック API

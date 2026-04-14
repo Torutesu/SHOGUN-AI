@@ -4,14 +4,27 @@ import { TimelineStore } from "./memory/timeline.js";
 import { LinkStore } from "./memory/links.js";
 import { TagStore } from "./memory/tags.js";
 import { SearchPipeline } from "./search/pipeline.js";
+import { JapaneseSearchEnhancer, containsCJK } from "./search/japanese.js";
+import { LLMExpander, HeuristicExpander } from "./search/expansion.js";
 import { recursiveChunk } from "./chunking/recursive.js";
+import { CachedEmbeddingProvider } from "./embeddings/cache.js";
+import { FieldEncryption, EncryptedFieldWrapper } from "./security/encryption.js";
 import { logger } from "./logger.js";
+import type { LLMRouter } from "./llm/router.js";
 import type { BrainStats, EmbeddingProvider, HealthReport, PageType } from "./types.js";
 
 export interface ShogunBrainOptions {
   dataDir?: string;
   embeddingProvider?: EmbeddingProvider;
   syncConcurrency?: number;
+  /** Enable embedding cache (SHA-256 dedup). Default: true if embeddingProvider set. */
+  enableEmbeddingCache?: boolean;
+  /** Passphrase for field-level encryption. Omit to disable. */
+  encryptionPassphrase?: string;
+  /** Installation-unique ID for encryption salt. */
+  installationId?: string;
+  /** LLM router for query expansion and entity extraction. */
+  llmRouter?: LLMRouter;
 }
 
 export class ShogunBrain {
@@ -23,6 +36,10 @@ export class ShogunBrain {
   readonly searchPipeline: SearchPipeline;
   private embeddingProvider: EmbeddingProvider | undefined;
   private syncConcurrency: number;
+  private japaneseSearch: JapaneseSearchEnhancer;
+  private encryption: FieldEncryption;
+  private fieldWrapper: EncryptedFieldWrapper;
+  private llmRouter: LLMRouter | undefined;
 
   constructor(options: ShogunBrainOptions = {}) {
     this.engine = new PostgresEngine({ dataDir: options.dataDir });
@@ -30,20 +47,68 @@ export class ShogunBrain {
     this.timeline = new TimelineStore(this.engine);
     this.links = new LinkStore(this.engine);
     this.tags = new TagStore(this.engine);
-    this.embeddingProvider = options.embeddingProvider;
     this.syncConcurrency = options.syncConcurrency ?? 5;
+    this.llmRouter = options.llmRouter;
+
+    // Encryption
+    this.encryption = new FieldEncryption(
+      options.encryptionPassphrase,
+      options.installationId
+    );
+    this.fieldWrapper = new EncryptedFieldWrapper(this.encryption);
+
+    // Embedding cache: wrap the provider if caching enabled
+    let effectiveProvider = options.embeddingProvider;
+    if (effectiveProvider && (options.enableEmbeddingCache ?? true)) {
+      const cached = new CachedEmbeddingProvider(effectiveProvider, this.engine);
+      effectiveProvider = cached;
+      this._cachedProvider = cached;
+    }
+    this.embeddingProvider = effectiveProvider;
+
+    // Search pipeline with LLM expander if available
+    const queryExpander = options.llmRouter
+      ? new LLMExpander((prompt: string) => options.llmRouter!.call(prompt, "light"))
+      : new HeuristicExpander();
+
     this.searchPipeline = new SearchPipeline({
       engine: this.engine,
-      embeddingProvider: options.embeddingProvider,
+      embeddingProvider: effectiveProvider,
+      queryExpander,
     });
+
+    // Japanese search enhancer
+    this.japaneseSearch = new JapaneseSearchEnhancer(this.engine);
   }
+
+  private _cachedProvider: CachedEmbeddingProvider | null = null;
 
   async init(): Promise<void> {
     await this.engine.init();
+
+    // Initialize embedding cache table if using cache
+    if (this._cachedProvider) {
+      await this._cachedProvider.init();
+    }
+
+    // Initialize Japanese search column
+    await this.japaneseSearch.init();
   }
 
   async close(): Promise<void> {
     await this.engine.close();
+  }
+
+  getEncryption(): FieldEncryption {
+    return this.encryption;
+  }
+
+  getFieldWrapper(): EncryptedFieldWrapper {
+    return this.fieldWrapper;
+  }
+
+  getLLMRouter(): LLMRouter | undefined {
+    return this.llmRouter;
   }
 
   async rechunkPage(pageId: number): Promise<void> {
@@ -67,7 +132,6 @@ export class ShogunBrain {
     const vectorSearch = this.searchPipeline.getVectorSearch();
 
     if (vectorSearch) {
-      // Index with embeddings (batch optimized)
       if (truthChunks.length > 0) {
         await vectorSearch.indexPage(pageId, truthChunks, "compiled_truth");
       }
@@ -75,7 +139,6 @@ export class ShogunBrain {
         await vectorSearch.indexPage(pageId, timelineChunks, "timeline");
       }
     } else {
-      // Store chunks without embeddings — batch INSERT
       await this.engine.query(
         "DELETE FROM content_chunks WHERE page_id = $1",
         [pageId]
@@ -103,6 +166,12 @@ export class ShogunBrain {
         );
       }
     }
+
+    // Update Japanese search tokens if content has CJK
+    const fullText = `${page.title} ${page.compiled_truth} ${page.timeline}`;
+    if (containsCJK(fullText)) {
+      await this.japaneseSearch.updateTokens(pageId);
+    }
   }
 
   async syncAll(force?: boolean): Promise<{ synced: number; skipped: number }> {
@@ -110,7 +179,6 @@ export class ShogunBrain {
     let synced = 0;
     let skipped = 0;
 
-    // Process pages with concurrency pool
     const queue = [...pages];
     const inFlight: Promise<void>[] = [];
 
@@ -132,7 +200,6 @@ export class ShogunBrain {
       } catch (error: unknown) {
         const err = error as Error;
         logger.error(`Failed to sync page ${page.slug}: ${err.message}`);
-        // Continue with other pages — don't abort entire sync
       }
     };
 
@@ -213,23 +280,26 @@ export class ShogunBrain {
         ? stats.embedded_chunks / stats.total_chunks
         : 0;
 
-    // Stale pages: pages without any chunks
     const [stalePages] = await this.engine.query<{ count: number }>(
       `SELECT COUNT(*)::int as count FROM pages p
        WHERE NOT EXISTS (SELECT 1 FROM content_chunks c WHERE c.page_id = p.id)`
     );
 
-    // Orphan pages: pages with no links to or from
     const [orphanPages] = await this.engine.query<{ count: number }>(
       `SELECT COUNT(*)::int as count FROM pages p
        WHERE NOT EXISTS (SELECT 1 FROM links l WHERE l.from_page_id = p.id OR l.to_page_id = p.id)`
     );
 
-    // Last dream cycle
     const lastCycle = await this.engine.queryOne<{ completed_at: Date }>(
       `SELECT completed_at FROM dream_cycle_log
        WHERE status = 'completed' ORDER BY completed_at DESC LIMIT 1`
     ).catch(() => null);
+
+    // Embedding cache stats
+    let cacheStats = null;
+    if (this._cachedProvider) {
+      cacheStats = await this._cachedProvider.getCacheStats();
+    }
 
     return {
       embed_coverage: embedCoverage,
@@ -248,20 +318,15 @@ export class ShogunBrain {
     logger.info("Dream Cycle starting");
     const startedAt = new Date();
 
-    // Log dream cycle start
     const logEntry = await this.engine.queryOne<{ id: number }>(
       `INSERT INTO dream_cycle_log (started_at, status) VALUES ($1, 'running') RETURNING id`,
       [startedAt]
     ).catch(() => null);
 
     try {
-      // Step 1-2: Sync and embed stale pages
       const syncResult = await this.syncAll(false);
-
-      // Step 3-6: Health check
       const health = await this.getHealth();
 
-      // Update log entry
       if (logEntry) {
         await this.engine.query(
           `UPDATE dream_cycle_log SET
@@ -278,10 +343,7 @@ export class ShogunBrain {
         skipped: syncResult.skipped,
       });
 
-      return {
-        ...syncResult,
-        health,
-      };
+      return { ...syncResult, health };
     } catch (error: unknown) {
       const err = error as Error;
       logger.error(`Dream Cycle failed: ${err.message}`);

@@ -230,6 +230,74 @@ async function dispatch(
       return exporter.importAll(params.data as any);
     }
 
+    case "ingest_slack": {
+      const token = String(params.token ?? "");
+      const channelId = String(params.channel_id ?? "");
+      if (!token || !channelId) throw new Error("token and channel_id required");
+      const { SlackIntegration } = await import("../integrations/slack.js");
+      const slack = new SlackIntegration(brain, token);
+      return slack.ingestChannel(channelId, {
+        limit: Number(params.limit ?? 200),
+      });
+    }
+
+    case "ingest_github": {
+      const token = String(params.token ?? "");
+      const owner = String(params.owner ?? "");
+      const repo = String(params.repo ?? "");
+      if (!token || !owner || !repo) throw new Error("token, owner, repo required");
+      const { GitHubIntegration } = await import("../integrations/github.js");
+      const gh = new GitHubIntegration(brain, token);
+      const issueResult = await gh.ingestIssues(owner, repo, {
+        limit: Number(params.limit ?? 50),
+      });
+      const commitResult = await gh.ingestCommits(owner, repo, {
+        limit: Number(params.limit ?? 50),
+      });
+      return { ...issueResult, commits: commitResult.commits };
+    }
+
+    case "ingest_google_calendar": {
+      const token = String(params.token ?? "");
+      if (!token) throw new Error("token required");
+      const { GoogleCalendarIntegration } = await import("../integrations/google-calendar.js");
+      const cal = new GoogleCalendarIntegration(brain, token);
+      return cal.ingestEvents({
+        limit: Number(params.limit ?? 50),
+      });
+    }
+
+    case "start_capture": {
+      // Start passive capture engine within the bridge process
+      const { PassiveCaptureEngine } = await import("../capture/passive.js");
+      const captureEngine = new PassiveCaptureEngine({
+        intervalMs: Number(params.interval_ms ?? 5000),
+        piiFilter: piiFilter,
+        onCapture: async (event) => {
+          const date = event.timestamp.toISOString().slice(0, 10);
+          const slug = `sessions/${date}`;
+
+          let page = await brain.pages.getPage(slug);
+          if (!page) {
+            page = await brain.pages.putPage({
+              slug,
+              type: "session",
+              title: `Session ${date}`,
+              compiled_truth: "Daily activity log.",
+            });
+          }
+
+          const text = event.type === "window" && event.appName
+            ? `[${event.appName}] ${event.text}`
+            : event.text;
+
+          await brain.timeline.addEntry(page.id, date, text, event.type);
+        },
+      });
+      captureEngine.start();
+      return { started: true };
+    }
+
     default:
       throw new Error(`Unknown method: ${method}`);
   }

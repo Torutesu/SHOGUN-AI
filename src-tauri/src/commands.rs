@@ -235,6 +235,18 @@ pub async fn export_brain() -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub async fn import_brain(data: Value) -> Result<Value, String> {
+    bridge_call("import_brain", serde_json::json!({ "data": data }))
+}
+
+#[tauri::command]
+pub async fn start_capture(interval_ms: Option<u32>) -> Result<Value, String> {
+    bridge_call("start_capture", serde_json::json!({
+        "interval_ms": interval_ms.unwrap_or(5000)
+    }))
+}
+
+#[tauri::command]
 pub async fn save_settings(
     app: tauri::AppHandle,
     settings: AppSettings,
