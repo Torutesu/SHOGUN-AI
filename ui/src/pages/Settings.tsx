@@ -57,6 +57,39 @@ export function Settings() {
         <Toggle label={t("settings.dreamcycle", lang)} sub={t("settings.dreamcycle.sub", lang)} checked={s.dream_cycle_enabled} onChange={(v) => u({ dream_cycle_enabled: v })} />
       </Sec>
 
+      <Sec title={lang === "ja" ? "データ削除" : "Delete Data"}>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { key: "last_5min", ja: "直近5分", en: "Last 5 min" },
+            { key: "last_15min", ja: "直近15分", en: "Last 15 min" },
+            { key: "last_30min", ja: "直近30分", en: "Last 30 min" },
+            { key: "last_1h", ja: "直近1時間", en: "Last 1 hour" },
+          ].map((opt) => (
+            <button
+              key={opt.key}
+              onClick={async () => {
+                if (!confirm(lang === "ja" ? `${opt.ja}のデータを削除しますか？` : `Delete data from ${opt.en}?`)) return;
+                try { await api.deleteTimelineRange(opt.key); } catch {}
+              }}
+              className="btn-surface text-xs py-1 px-3 text-status-error"
+            >
+              {lang === "ja" ? opt.ja : opt.en}
+            </button>
+          ))}
+        </div>
+      </Sec>
+
+      <Sec title={lang === "ja" ? "除外アプリ" : "Excluded Apps"}>
+        <p className="text-[11px] text-text-disabled mb-2">
+          {lang === "ja" ? "以下のアプリはキャプチャから自動除外されます" : "These apps are automatically excluded from capture"}
+        </p>
+        <div className="flex flex-wrap gap-1.5">
+          {["1Password", "Bitwarden", "KeePass", "LastPass", "Keychain Access", "Terminal", "iTerm2"].map((app) => (
+            <span key={app} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-alt text-text-secondary">{app}</span>
+          ))}
+        </div>
+      </Sec>
+
       <Sec title={t("settings.language", lang)}>
         <select className="input" value={s.language} onChange={(e) => u({ language: e.target.value })}>
           <option value="ja">日本語</option>

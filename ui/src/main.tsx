@@ -10,6 +10,7 @@ import { PageEdit } from "./pages/PageEdit";
 import { Chat } from "./pages/Chat";
 import { Timeline } from "./pages/Timeline";
 import { Pipes } from "./pages/Pipes";
+import { Integrations } from "./pages/Integrations";
 import { Settings } from "./pages/Settings";
 import "./index.css";
 
@@ -23,6 +24,7 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="search" element={<Search />} />
           <Route path="timeline" element={<Timeline />} />
           <Route path="pipes" element={<Pipes />} />
+          <Route path="integrations" element={<Integrations />} />
           <Route path="page/:slug" element={<PageView />} />
           <Route path="page/:slug/edit" element={<PageEdit />} />
           <Route path="settings" element={<Settings />} />

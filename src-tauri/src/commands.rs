@@ -249,6 +249,88 @@ pub async fn start_capture(interval_ms: Option<u32>) -> Result<Value, String> {
     bridge_call("start_capture", serde_json::json!({ "interval_ms": interval_ms.unwrap_or(5000) }))
 }
 
+// ─── Missing commands (were in bridge but not registered in Tauri) ───
+
+#[tauri::command]
+pub async fn chat(message: String) -> Result<Value, String> {
+    bridge_call("chat", serde_json::json!({ "message": message }))
+}
+
+#[tauri::command]
+pub async fn pause_capture() -> Result<Value, String> {
+    bridge_call("pause_capture", serde_json::json!({}))
+}
+
+#[tauri::command]
+pub async fn resume_capture() -> Result<Value, String> {
+    bridge_call("resume_capture", serde_json::json!({}))
+}
+
+#[tauri::command]
+pub async fn start_ocr_capture(interval_ms: Option<u32>) -> Result<Value, String> {
+    bridge_call("start_ocr_capture", serde_json::json!({ "interval_ms": interval_ms.unwrap_or(3000) }))
+}
+
+#[tauri::command]
+pub async fn start_audio_capture() -> Result<Value, String> {
+    bridge_call("start_audio_capture", serde_json::json!({}))
+}
+
+#[tauri::command]
+pub async fn get_timeline_range(start_date: String, end_date: String, limit: Option<u32>) -> Result<Value, String> {
+    bridge_call("get_timeline_range", serde_json::json!({ "start_date": start_date, "end_date": end_date, "limit": limit.unwrap_or(30) }))
+}
+
+#[tauri::command]
+pub async fn get_today_timeline() -> Result<Value, String> {
+    bridge_call("get_today_timeline", serde_json::json!({}))
+}
+
+#[tauri::command]
+pub async fn delete_timeline_range(range: String) -> Result<Value, String> {
+    bridge_call("delete_timeline_range", serde_json::json!({ "range": range }))
+}
+
+#[tauri::command]
+pub async fn list_pipes() -> Result<Value, String> {
+    bridge_call("list_pipes", serde_json::json!({}))
+}
+
+#[tauri::command]
+pub async fn set_pipe_enabled(id: String, enabled: bool) -> Result<Value, String> {
+    bridge_call("set_pipe_enabled", serde_json::json!({ "id": id, "enabled": enabled }))
+}
+
+#[tauri::command]
+pub async fn run_pipe(id: String) -> Result<Value, String> {
+    bridge_call("run_pipe", serde_json::json!({ "id": id }))
+}
+
+#[tauri::command]
+pub async fn ingest_slack(token: String, channel_id: String) -> Result<Value, String> {
+    bridge_call("ingest_slack", serde_json::json!({ "token": token, "channel_id": channel_id }))
+}
+
+#[tauri::command]
+pub async fn ingest_github(token: String, owner: String, repo: String) -> Result<Value, String> {
+    bridge_call("ingest_github", serde_json::json!({ "token": token, "owner": owner, "repo": repo }))
+}
+
+#[tauri::command]
+pub async fn ingest_notion(token: String) -> Result<Value, String> {
+    bridge_call("ingest_notion", serde_json::json!({ "token": token }))
+}
+
+#[tauri::command]
+pub async fn ingest_linear(api_key: String) -> Result<Value, String> {
+    bridge_call("ingest_linear", serde_json::json!({ "api_key": api_key }))
+}
+
+#[tauri::command]
+pub async fn ingest_gmail(access_token: String, refresh_token: String, client_id: String, client_secret: String) -> Result<Value, String> {
+    bridge_call("ingest_gmail", serde_json::json!({ "access_token": access_token, "refresh_token": refresh_token, "client_id": client_id, "client_secret": client_secret }))
+}
+
 #[tauri::command]
 pub async fn save_settings(app: tauri::AppHandle, settings: AppSettings) -> Result<(), String> {
     let store = app.store("settings.json").map_err(|e| e.to_string())?;

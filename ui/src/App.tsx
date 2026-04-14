@@ -1,6 +1,7 @@
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { SpotlightSearch } from "./components/SpotlightSearch";
+import { PrivateMode } from "./components/PrivateMode";
 import { api } from "./lib/tauri";
 import { LangContext, t, type Lang } from "./lib/i18n";
 
@@ -37,20 +38,6 @@ export default function App() {
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
-
-  const toggleCapture = useCallback(async () => {
-    try {
-      if (captureActive) {
-        await api.pauseCapture();
-        setCaptureActive(false);
-      } else {
-        await api.resumeCapture();
-        setCaptureActive(true);
-      }
-    } catch {
-      setCaptureActive(!captureActive);
-    }
-  }, [captureActive]);
 
   if (!ready) return <div className="flex items-center justify-center h-screen bg-base" />;
 
@@ -89,17 +76,13 @@ export default function App() {
           {nav("/search", t("nav.search", lang), <I d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />)}
           {nav("/timeline", lang === "ja" ? "タイムライン" : "Timeline", <I d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />)}
           {nav("/pipes", "Pipes", <I d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />)}
+          {nav("/integrations", lang === "ja" ? "連携" : "Integrations", <I d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />)}
+
           <div className="section-label px-2 pt-4 pb-1">System</div>
           {nav("/settings", t("nav.settings", lang), <I d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />)}
         </nav>
 
-        <div className="px-4 py-3 border-t border-border">
-          <button onClick={toggleCapture} className="flex items-center gap-2 text-xs w-full">
-            {captureActive
-              ? <><span className="dot-pulse" /><span className="text-text-secondary">{t("dash.capturing", lang)}</span></>
-              : <><span className="w-2 h-2 rounded-full bg-text-disabled" /><span className="text-text-disabled">{t("dash.paused", lang)}</span></>}
-          </button>
-        </div>
+        <PrivateMode isActive={captureActive} onToggle={setCaptureActive} />
       </aside>
 
       <main className="flex-1 overflow-y-auto"><Outlet /></main>

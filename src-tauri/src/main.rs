@@ -76,6 +76,7 @@ fn main() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // Core
             commands::get_brain_stats,
             commands::search_memory,
             commands::hybrid_search,
@@ -85,11 +86,34 @@ fn main() {
             commands::list_pages,
             commands::get_health,
             commands::run_dream_cycle,
+            // Capture
             commands::add_clipboard_entry,
             commands::add_window_entry,
+            commands::start_capture,
+            commands::pause_capture,
+            commands::resume_capture,
+            commands::start_ocr_capture,
+            commands::start_audio_capture,
+            // Chat
+            commands::chat,
+            // Export/Import
             commands::export_brain,
             commands::import_brain,
-            commands::start_capture,
+            // Timeline
+            commands::get_timeline_range,
+            commands::get_today_timeline,
+            commands::delete_timeline_range,
+            // Pipes
+            commands::list_pipes,
+            commands::set_pipe_enabled,
+            commands::run_pipe,
+            // Integrations
+            commands::ingest_slack,
+            commands::ingest_github,
+            commands::ingest_notion,
+            commands::ingest_linear,
+            commands::ingest_gmail,
+            // Settings
             commands::save_settings,
             commands::load_settings,
         ])
