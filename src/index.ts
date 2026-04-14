@@ -19,10 +19,13 @@ export { LLMRouter, createClaudeProvider, createOpenAIProvider } from "./llm/ind
 export type { LLMProvider, TaskComplexity } from "./llm/index.js";
 
 // Search
-export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup } from "./search/index.js";
+export { SearchPipeline, KeywordSearch, VectorSearch, rrfFusion, dedup, JapaneseSearchEnhancer } from "./search/index.js";
 
 // Dream Cycle
-export { DreamCycle, scheduleDreamCycle } from "./dream/index.js";
+export { DreamCycle, scheduleDreamCycle, EntityExtractor, MemoryConsolidator } from "./dream/index.js";
+
+// Security
+export { FieldEncryption, EncryptedFieldWrapper } from "./security/index.js";
 
 // Logger
 export { logger } from "./logger.js";
