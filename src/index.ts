@@ -54,9 +54,14 @@ export {
   PIIFilter, detectPII, removePII, containsPII,
   RateLimiter,
   slugSchema, dateSchema, tagSchema, sanitizeDataDir, sanitizeError,
-  KeychainManager,
+  KeychainManager, AuditLog,
   isBiometricAvailable, registerBiometric, verifyBiometric,
 } from "./security/index.js";
+export type { AuditEntry } from "./security/index.js";
+
+// Tiered Memory
+export { TieredMemory, getPageTier, getTierBoost } from "./memory/tiered-memory.js";
+export type { MemoryTier } from "./memory/tiered-memory.js";
 export type { PIIDetection, PIIFilterOptions } from "./security/index.js";
 
 // Integrations

@@ -11,3 +11,5 @@ export {
 } from "./biometric.js";
 export type { BiometricCredential } from "./biometric.js";
 export { KeychainManager } from "./keychain.js";
+export { AuditLog } from "./audit.js";
+export type { AuditEntry } from "./audit.js";
