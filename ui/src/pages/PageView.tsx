@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, type PageData } from "../lib/tauri";
+import { useLang, t } from "../lib/i18n";
 
 export function PageView() {
   const { slug } = useParams<{ slug: string }>();
@@ -9,6 +10,7 @@ export function PageView() {
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState(false);
   const navigate = useNavigate();
+  const lang = useLang();
 
   useEffect(() => {
     if (!slug) return;
@@ -27,7 +29,7 @@ export function PageView() {
 
   if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
   if (error) return <div className="p-6 text-center"><p className="text-sm text-status-error">{error}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">← Back</button></div>;
-  if (!page) return <div className="p-6 text-center"><p className="text-sm text-text-disabled">Page not found</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">← Back</button></div>;
+  if (!page) return <div className="p-6 text-center"><p className="text-sm text-text-disabled">{t("page.notfound", lang)}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">{t("page.back", lang)}</button></div>;
 
   const icon: Record<string, string> = { person: "👤", company: "🏢", session: "📅", concept: "💡" };
 
@@ -77,9 +79,9 @@ export function PageView() {
 
       {/* Actions */}
       <div className="flex gap-2">
-        <button onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)} className="btn-gold">Edit</button>
+        <button onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)} className="btn-gold">{t("page.edit", lang)}</button>
         <button onClick={handleDelete} disabled={deleting} className="btn-surface text-status-error">
-          {deleting ? "Deleting..." : "Delete"}
+          {deleting ? "..." : t("page.delete", lang)}
         </button>
       </div>
     </div>

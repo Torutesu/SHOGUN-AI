@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api, type AppSettings } from "../lib/tauri";
+import { useLang, t } from "../lib/i18n";
 
 export function Settings() {
   const [s, setS] = useState<AppSettings | null>(null);
@@ -23,11 +24,13 @@ export function Settings() {
   };
 
   if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
+  const lang = useLang();
+
   if (!s) return <div className="p-6 text-status-error text-sm">{error ?? "Failed to load"}</div>;
 
   return (
     <div className="p-6 max-w-[560px] mx-auto space-y-5 animate-in">
-      <h1 className="text-md font-semibold">Settings</h1>
+      <h1 className="text-md font-semibold">{t("settings.title", lang)}</h1>
 
       {error && <div className="bg-status-error/10 border border-status-error/20 rounded-md px-3 py-2 text-xs text-status-error">{error}</div>}
 
@@ -64,7 +67,7 @@ export function Settings() {
       </Section>
 
       <button onClick={save} disabled={saving} className="btn-gold w-full">
-        {saved ? "✓ Saved" : saving ? "Saving..." : "Save Settings"}
+        {saved ? t("settings.saved", lang) : saving ? t("settings.saving", lang) : t("settings.save", lang)}
       </button>
     </div>
   );

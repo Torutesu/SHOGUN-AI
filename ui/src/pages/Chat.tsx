@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from "react";
 import { api } from "../lib/tauri";
+import { useLang, t } from "../lib/i18n";
 
 interface ChatMsg {
   role: "user" | "assistant";
@@ -35,14 +36,17 @@ export function Chat() {
     setLoading(false);
   };
 
-  const suggestions = ["今週誰と話した？", "先月の進捗は？", "最近の決定事項は？", "未完了タスクは？"];
+  const lang = useLang();
+  const suggestions = lang === "ja"
+    ? ["今週誰と話した？", "先月の進捗は？", "最近の決定事項は？", "未完了タスクは？"]
+    : ["Who did I talk to this week?", "Last month's progress?", "Recent decisions?", "Open tasks?"];
 
   return (
     <div className="flex flex-col h-full">
       {/* Header */}
       <div className="px-6 py-4 border-b border-border">
-        <h1 className="text-md font-semibold">Ask Memory</h1>
-        <p className="text-xs text-text-disabled mt-0.5">Your memory, searchable by conversation</p>
+        <h1 className="text-md font-semibold">{t("chat.title", lang)}</h1>
+        <p className="text-xs text-text-disabled mt-0.5">{t("chat.subtitle", lang)}</p>
       </div>
 
       {/* Messages */}
@@ -53,8 +57,7 @@ export function Chat() {
               <span className="text-gold text-xl">将</span>
             </div>
             <div>
-              <p className="text-sm text-text-secondary">Ask anything about your memory</p>
-              <p className="text-xs text-text-disabled mt-1">メモリに何でも聞いてください</p>
+              <p className="text-sm text-text-secondary">{t("chat.empty", lang)}</p>
             </div>
             <div className="flex flex-wrap justify-center gap-2 max-w-md">
               {suggestions.map((q) => (
@@ -109,14 +112,14 @@ export function Chat() {
         <div className="flex gap-2 max-w-2xl mx-auto">
           <input
             className="input flex-1"
-            placeholder="Ask your memory..."
+            placeholder={t("chat.placeholder", lang)}
             value={input}
             onChange={(e) => setInput(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
             autoFocus
           />
           <button onClick={send} disabled={!input.trim() || loading} className="btn-gold">
-            Send
+            {t("chat.send", lang)}
           </button>
         </div>
       </div>

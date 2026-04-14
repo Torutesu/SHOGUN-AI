@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type SearchResult } from "../lib/tauri";
+import { useLang, t } from "../lib/i18n";
 
 export function Search() {
   const [query, setQuery] = useState("");
@@ -8,6 +9,7 @@ export function Search() {
   const [searching, setSearching] = useState(false);
   const [searched, setSearched] = useState(false);
   const navigate = useNavigate();
+  const lang = useLang();
 
   const search = async () => {
     if (!query.trim()) return;
@@ -21,14 +23,14 @@ export function Search() {
 
   return (
     <div className="p-6 max-w-[720px] mx-auto space-y-4 animate-in">
-      <h1 className="text-md font-semibold">Search</h1>
+      <h1 className="text-md font-semibold">{t("search.title", lang)}</h1>
 
       <div className="flex gap-2">
         <div className="relative flex-1">
           <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-disabled" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
           </svg>
-          <input className="input pl-9" placeholder="Search anything..." value={query}
+          <input className="input pl-9" placeholder={t("search.placeholder", lang)} value={query}
             onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} autoFocus />
         </div>
         <button onClick={search} disabled={searching} className="btn-gold">{searching ? "..." : "Search"}</button>
@@ -36,9 +38,9 @@ export function Search() {
 
       {searched && (
         <div className="space-y-2">
-          <div className="text-xs text-text-disabled">{results.length} results</div>
+          <div className="text-xs text-text-disabled">{results.length} {t("search.results", lang)}</div>
           {results.length === 0 ? (
-            <div className="card text-center py-8 text-sm text-text-disabled">No results found</div>
+            <div className="card text-center py-8 text-sm text-text-disabled">{t("search.none", lang)}</div>
           ) : results.map((r) => (
             <div key={r.slug} className="card-interactive flex items-center gap-3"
               onClick={() => navigate(`/page/${encodeURIComponent(r.slug)}`)}>
@@ -63,7 +65,7 @@ export function Search() {
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
             </svg>
           </div>
-          <p className="text-sm text-text-secondary">Keyword or natural language query</p>
+          <p className="text-sm text-text-secondary">{t("search.empty", lang)}</p>
         </div>
       )}
     </div>
