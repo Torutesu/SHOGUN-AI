@@ -63,13 +63,68 @@ const T: Translations = {
   "page.delete.confirm": { ja: "このページを削除しますか？", en: "Delete this page?" },
   "page.notfound": { ja: "ページが見つかりません", en: "Page not found" },
   "page.back": { ja: "← 戻る", en: "← Back" },
+  "page.truth": { ja: "コンパイルされた真実", en: "Compiled Truth" },
+  "page.timeline": { ja: "タイムライン", en: "Timeline" },
+  "page.title": { ja: "タイトル", en: "Title" },
+  "page.type": { ja: "タイプ", en: "Type" },
+  "page.tags": { ja: "タグ（カンマ区切り）", en: "Tags (comma-separated)" },
+  "page.save": { ja: "保存", en: "Save" },
+  "page.saving": { ja: "保存中...", en: "Saving..." },
+  "page.cancel": { ja: "キャンセル", en: "Cancel" },
+  "page.editing": { ja: "編集中", en: "Editing" },
+
+  // Dashboard metrics
+  "metric.pages": { ja: "ページ", en: "Pages" },
+  "metric.chunks": { ja: "チャンク", en: "Chunks" },
+  "metric.links": { ja: "リンク", en: "Links" },
+  "metric.events": { ja: "イベント", en: "Events" },
+  "metric.coverage": { ja: "埋め込みカバレッジ", en: "Embed Coverage" },
+  "metric.stale": { ja: "古いページ", en: "Stale" },
+  "metric.orphans": { ja: "孤立ページ", en: "Orphans" },
+
+  // Chat
+  "chat.sources": { ja: "ソース", en: "Sources" },
+  "chat.error": { ja: "失敗しました — Settingsでキーを確認してください", en: "Failed — check API keys in Settings" },
+
+  // Settings sections
+  "settings.apikeys": { ja: "APIキー", en: "API Keys" },
+  "settings.embedding": { ja: "埋め込み", en: "Embedding" },
+  "settings.tier": { ja: "ティア", en: "Tier" },
+  "settings.storage": { ja: "ストレージ・セキュリティ", en: "Storage & Security" },
+  "settings.datadir": { ja: "データディレクトリ", en: "Data Directory" },
+  "settings.encryption": { ja: "暗号化", en: "Encryption" },
+  "settings.encryption.sub": { ja: "AES-256-GCM · 再起動後に反映", en: "AES-256-GCM · Requires restart" },
+  "settings.capture": { ja: "キャプチャ", en: "Capture" },
+  "settings.dreamcycle": { ja: "自動実行", en: "Auto-run" },
+  "settings.dreamcycle.sub": { ja: "毎日 00:00 JST に Dream Cycle を実行", en: "Run Dream Cycle daily at 00:00 JST" },
+  "settings.language": { ja: "言語", en: "Language" },
+  "settings.tier.fast": { ja: "Fast (256次元) — 最速", en: "Fast (256 dims) — fastest" },
+  "settings.tier.balanced": { ja: "Balanced (1536次元) — バランス", en: "Balanced (1536 dims)" },
+  "settings.tier.full": { ja: "Full (3072次元) — 最高精度", en: "Full (3072 dims) — highest" },
 
   // Onboarding
   "onboard.start": { ja: "はじめる", en: "Get Started" },
   "onboard.next": { ja: "次へ", en: "Next" },
-  "onboard.skip": { ja: "スキップ", en: "Skip" },
+  "onboard.skip": { ja: "スキップ — キーワード検索のみ", en: "Skip — keyword search only" },
   "onboard.done": { ja: "SHOGUNを使い始める", en: "Start using SHOGUN" },
   "onboard.local": { ja: "全データはあなたのデバイスに保存されます", en: "All data stays on your device" },
+  "onboard.ready": { ja: "準備完了", en: "Ready" },
+  "onboard.ready.sub": { ja: "SHOGUNのセットアップが完了しました", en: "SHOGUN is set up and running" },
+  "onboard.apikeys": { ja: "APIキー", en: "API Keys" },
+  "onboard.apikeys.hint": { ja: "キーはローカルにのみ保存されます", en: "Keys are stored locally only" },
+  "onboard.firstmemory": { ja: "最初のメモリを作る", en: "Create your first memory" },
+  "onboard.name": { ja: "あなたの名前", en: "Your name" },
+  "onboard.whatdo": { ja: "何をしていますか？", en: "What do you do?" },
+  "onboard.creating": { ja: "作成中...", en: "Creating..." },
+  "onboard.created": { ja: "✓ 作成完了", en: "✓ Created" },
+  "onboard.createpage": { ja: "ページを作成", en: "Create Page" },
+  "onboard.trysearch": { ja: "検索を試す", en: "Try a search" },
+  "onboard.noresults": { ja: "まだ結果なし", en: "No results yet" },
+  "onboard.back": { ja: "← 戻る", en: "← Back" },
+
+  // Spotlight
+  "spotlight.placeholder": { ja: "メモリを検索...", en: "Search memory..." },
+  "spotlight.noresults": { ja: "結果なし", en: "No results" },
 };
 
 export function t(key: string, lang: Lang): string {

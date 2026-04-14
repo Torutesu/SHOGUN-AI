@@ -125,8 +125,10 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
       onboarding_completed: true, // true in dev mode to avoid redirect loop
     },
     save_settings: undefined,
-    put_page: { slug: "test/page", title: "Test", page_type: "concept" },
+    put_page: { slug: "test/page", title: "Test", page_type: "concept", compiled_truth: "", timeline: "", tags: [], updated_at: new Date().toISOString() },
     delete_page: true,
+    pause_capture: { paused: true },
+    resume_capture: { resumed: true },
   };
   return (mocks[cmd] ?? null) as T;
 }
@@ -155,6 +157,8 @@ export const api = {
   startCapture: (intervalMs?: number) =>
     invoke<unknown>("start_capture", { interval_ms: intervalMs }),
   chat: (message: string) => invoke<unknown>("chat", { message }),
+  pauseCapture: () => invoke<unknown>("pause_capture"),
+  resumeCapture: () => invoke<unknown>("resume_capture"),
   startOCRCapture: () => invoke<unknown>("start_ocr_capture"),
   startAudioCapture: () => invoke<unknown>("start_audio_capture"),
   saveSettings: (settings: AppSettings) =>

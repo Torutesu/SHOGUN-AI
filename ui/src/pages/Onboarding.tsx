@@ -1,26 +1,30 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/tauri";
+import { useLang, t } from "../lib/i18n";
 
 type Step = 1 | 2 | 3 | 4 | 5;
 
 export function Onboarding() {
   const [step, setStep] = useState<Step>(1);
   const navigate = useNavigate();
+  const lang = useLang();
   const next = () => setStep((s) => Math.min(s + 1, 5) as Step);
   const prev = () => setStep((s) => Math.max(s - 1, 1) as Step);
 
   return (
     <div className="min-h-screen bg-base flex items-center justify-center p-8">
       <div className="w-full max-w-md">
-        {step === 1 && <Welcome onNext={next} />}
-        {step === 2 && <ApiKeys onNext={next} onBack={prev} />}
-        {step === 3 && <FirstMemory onNext={next} onBack={prev} />}
-        {step === 4 && <SearchDemo onNext={next} onBack={prev} />}
-        {step === 5 && <Complete onFinish={() => navigate("/")} />}
+        <div key={step} className="animate-in">
+          {step === 1 && <Welcome onNext={next} lang={lang} />}
+          {step === 2 && <ApiKeys onNext={next} onBack={prev} lang={lang} />}
+          {step === 3 && <FirstMemory onNext={next} onBack={prev} lang={lang} />}
+          {step === 4 && <SearchDemo onNext={next} onBack={prev} lang={lang} />}
+          {step === 5 && <Complete onFinish={() => navigate("/")} lang={lang} />}
+        </div>
         <div className="flex justify-center gap-1.5 mt-6">
           {[1,2,3,4,5].map((s) => (
-            <div key={s} className={`w-1.5 h-1.5 rounded-full transition-colors ${s <= step ? "bg-gold" : "bg-border"}`} />
+            <div key={s} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${s <= step ? "bg-gold" : "bg-border"}`} />
           ))}
         </div>
       </div>
@@ -28,43 +32,42 @@ export function Onboarding() {
   );
 }
 
-function Welcome({ onNext }: { onNext: () => void }) {
+type P = { lang: "ja"|"en" };
+
+function Welcome({ onNext, lang }: { onNext: () => void } & P) {
   return (
-    <div className="text-center space-y-6 animate-in">
+    <div className="text-center space-y-6">
       <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto">
         <span className="text-gold text-2xl font-semibold">将</span>
       </div>
       <div>
         <h1 className="text-xl font-semibold">SHOGUN</h1>
-        <p className="text-sm text-text-secondary mt-1">The AI that remembers everything you do</p>
+        <p className="text-sm text-text-secondary mt-1">
+          {lang === "ja" ? "すべてを覚えるAI" : "The AI that remembers everything you do"}
+        </p>
       </div>
-      <button onClick={onNext} className="btn-gold w-full">Get Started</button>
+      <button onClick={onNext} className="btn-gold w-full">{t("onboard.start", lang)}</button>
       <div className="flex items-center justify-center gap-1.5 text-[11px] text-text-disabled">
         <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-        All data stays on your device
+        {t("onboard.local", lang)}
       </div>
     </div>
   );
 }
 
-function ApiKeys({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function ApiKeys({ onNext, onBack, lang }: { onNext: () => void; onBack: () => void } & P) {
   const [openai, setOpenai] = useState("");
   const [skip, setSkip] = useState(false);
 
   const handleNext = async () => {
-    try {
-      if (!skip && openai) {
-        const s = await api.loadSettings();
-        await api.saveSettings({ ...s, openai_api_key: openai || null });
-      }
-    } catch {}
+    try { if (!skip && openai) { const s = await api.loadSettings(); await api.saveSettings({ ...s, openai_api_key: openai || null }); } } catch {}
     onNext();
   };
 
   return (
-    <div className="space-y-5 animate-in">
-      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">← Back</button>
-      <h2 className="text-md font-semibold">API Keys</h2>
+    <div className="space-y-5">
+      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">{t("onboard.back", lang)}</button>
+      <h2 className="text-md font-semibold">{t("onboard.apikeys", lang)}</h2>
       <div className="card space-y-3">
         <label className="block">
           <span className="text-xs text-text-secondary">OpenAI API Key</span>
@@ -74,15 +77,15 @@ function ApiKeys({ onNext, onBack }: { onNext: () => void; onBack: () => void })
       </div>
       <label className="flex items-center gap-2 text-xs text-text-disabled cursor-pointer">
         <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} className="rounded" />
-        Skip — keyword search only
+        {t("onboard.skip", lang)}
       </label>
-      <p className="text-[11px] text-text-disabled">Keys are stored locally, never sent to SHOGUN servers.</p>
-      <button onClick={handleNext} className="btn-gold w-full">Next</button>
+      <p className="text-[11px] text-text-disabled">{t("onboard.apikeys.hint", lang)}</p>
+      <button onClick={handleNext} className="btn-gold w-full">{t("onboard.next", lang)}</button>
     </div>
   );
 }
 
-function FirstMemory({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function FirstMemory({ onNext, onBack, lang }: { onNext: () => void; onBack: () => void } & P) {
   const [name, setName] = useState("");
   const [desc, setDesc] = useState("");
   const [creating, setCreating] = useState(false);
@@ -98,37 +101,27 @@ function FirstMemory({ onNext, onBack }: { onNext: () => void; onBack: () => voi
   };
 
   return (
-    <div className="space-y-5 animate-in">
-      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">← Back</button>
-      <h2 className="text-md font-semibold">Create your first memory</h2>
+    <div className="space-y-5">
+      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">{t("onboard.back", lang)}</button>
+      <h2 className="text-md font-semibold">{t("onboard.firstmemory", lang)}</h2>
       <div className="space-y-3">
-        <label className="block">
-          <span className="text-xs text-text-secondary">Your name</span>
-          <input className="input mt-1" placeholder="Toru Yamamoto" value={name} onChange={(e) => setName(e.target.value)} />
-        </label>
-        <label className="block">
-          <span className="text-xs text-text-secondary">What do you do?</span>
-          <textarea className="input mt-1 h-20 resize-none" placeholder="Building SHOGUN..." value={desc} onChange={(e) => setDesc(e.target.value)} />
-        </label>
+        <label className="block"><span className="text-xs text-text-secondary">{t("onboard.name", lang)}</span><input className="input mt-1" placeholder="Toru Yamamoto" value={name} onChange={(e) => setName(e.target.value)} /></label>
+        <label className="block"><span className="text-xs text-text-secondary">{t("onboard.whatdo", lang)}</span><textarea className="input mt-1 h-20 resize-none" placeholder="Building SHOGUN..." value={desc} onChange={(e) => setDesc(e.target.value)} /></label>
       </div>
-      <div className="card font-mono text-[11px] text-text-secondary">
-        <span className="text-text-disabled">{slug}</span>
-      </div>
+      <div className="card font-mono text-[11px] text-text-secondary"><span className="text-text-disabled">{slug}</span></div>
       {done ? (
         <div className="text-center space-y-3">
-          <div className="text-status-active text-sm font-medium">✓ Created</div>
-          <button onClick={onNext} className="btn-gold w-full">Next</button>
+          <div className="text-status-active text-sm font-medium">{t("onboard.created", lang)}</div>
+          <button onClick={onNext} className="btn-gold w-full">{t("onboard.next", lang)}</button>
         </div>
       ) : (
-        <button onClick={create} disabled={!name || creating} className="btn-gold w-full">
-          {creating ? "Creating..." : "Create Page"}
-        </button>
+        <button onClick={create} disabled={!name || creating} className="btn-gold w-full">{creating ? t("onboard.creating", lang) : t("onboard.createpage", lang)}</button>
       )}
     </div>
   );
 }
 
-function SearchDemo({ onNext, onBack }: { onNext: () => void; onBack: () => void }) {
+function SearchDemo({ onNext, onBack, lang }: { onNext: () => void; onBack: () => void } & P) {
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<{ slug: string; title: string }[]>([]);
   const [searched, setSearched] = useState(false);
@@ -140,41 +133,37 @@ function SearchDemo({ onNext, onBack }: { onNext: () => void; onBack: () => void
   };
 
   return (
-    <div className="space-y-5 animate-in">
-      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">← Back</button>
-      <h2 className="text-md font-semibold">Try a search</h2>
+    <div className="space-y-5">
+      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">{t("onboard.back", lang)}</button>
+      <h2 className="text-md font-semibold">{t("onboard.trysearch", lang)}</h2>
       <div className="flex gap-2">
-        <input className="input flex-1" placeholder="Search..." value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
-        <button onClick={search} className="btn-gold">Search</button>
+        <input className="input flex-1" placeholder={t("search.placeholder", lang)} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
+        <button onClick={search} className="btn-gold">{t("nav.search", lang)}</button>
       </div>
       {searched && (
         <div className="space-y-1.5">
-          {results.length > 0 ? results.map((r) => (
-            <div key={r.slug} className="card text-sm">{r.title}</div>
-          )) : <p className="text-xs text-text-disabled text-center py-3">No results yet</p>}
+          {results.length > 0 ? results.map((r) => <div key={r.slug} className="card text-sm">{r.title}</div>)
+            : <p className="text-xs text-text-disabled text-center py-3">{t("onboard.noresults", lang)}</p>}
         </div>
       )}
-      <button onClick={onNext} className="btn-gold w-full">Next</button>
+      <button onClick={onNext} className="btn-gold w-full">{t("onboard.next", lang)}</button>
     </div>
   );
 }
 
-function Complete({ onFinish }: { onFinish: () => void }) {
+function Complete({ onFinish, lang }: { onFinish: () => void } & P) {
   const finish = async () => {
     try { const s = await api.loadSettings(); await api.saveSettings({ ...s, onboarding_completed: true }); } catch {}
     onFinish();
   };
-
   return (
-    <div className="text-center space-y-6 animate-in">
-      <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto">
-        <span className="text-gold text-2xl">✓</span>
-      </div>
+    <div className="text-center space-y-6">
+      <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto"><span className="text-gold text-2xl">✓</span></div>
       <div>
-        <h2 className="text-xl font-semibold">Ready</h2>
-        <p className="text-sm text-text-secondary mt-1">SHOGUN is set up and running</p>
+        <h2 className="text-xl font-semibold">{t("onboard.ready", lang)}</h2>
+        <p className="text-sm text-text-secondary mt-1">{t("onboard.ready.sub", lang)}</p>
       </div>
-      <button onClick={finish} className="btn-gold w-full">Start using SHOGUN</button>
+      <button onClick={finish} className="btn-gold w-full">{t("onboard.done", lang)}</button>
     </div>
   );
 }

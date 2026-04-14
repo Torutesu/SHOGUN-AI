@@ -21,21 +21,21 @@ export function PageView() {
   }, [slug]);
 
   const handleDelete = async () => {
-    if (!confirm("Delete this page?")) return;
+    if (!confirm(t("page.delete.confirm", lang))) return;
     setDeleting(true);
     try { await api.deletePage(page!.slug); navigate("/"); }
     catch (e) { setError(String(e)); setDeleting(false); }
   };
 
   if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
-  if (error) return <div className="p-6 text-center"><p className="text-sm text-status-error">{error}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">← Back</button></div>;
+  if (error) return <div className="p-6 text-center"><p className="text-sm text-status-error">{error}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">{t("page.back", lang)}</button></div>;
   if (!page) return <div className="p-6 text-center"><p className="text-sm text-text-disabled">{t("page.notfound", lang)}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">{t("page.back", lang)}</button></div>;
 
   const icon: Record<string, string> = { person: "👤", company: "🏢", session: "📅", concept: "💡" };
 
   return (
     <div className="p-6 max-w-[680px] mx-auto space-y-5 animate-in">
-      <button onClick={() => navigate(-1)} className="text-xs text-text-disabled hover:text-text-secondary transition-colors">← Back</button>
+      <button onClick={() => navigate(-1)} className="text-xs text-text-disabled hover:text-text-secondary transition-colors">{t("page.back", lang)}</button>
 
       {/* Header */}
       <div className="flex items-start gap-3">
@@ -58,14 +58,14 @@ export function PageView() {
 
       {/* Truth */}
       <div className="card">
-        <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">Compiled Truth</div>
+        <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">{t("page.truth", lang)}</div>
         <div className="text-sm leading-relaxed whitespace-pre-wrap">{page.compiled_truth}</div>
       </div>
 
       {/* Timeline */}
       {page.timeline && (
         <div className="card">
-          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">Timeline</div>
+          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">{t("page.timeline", lang)}</div>
           <div className="space-y-1.5">
             {page.timeline.split("\n").filter(Boolean).map((line, i) => (
               <div key={i} className="flex items-start gap-2 text-xs">

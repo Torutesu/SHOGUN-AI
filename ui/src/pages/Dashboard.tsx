@@ -52,10 +52,10 @@ export function Dashboard() {
       {error && <div className="bg-status-error/10 border border-status-error/20 rounded-md px-3 py-2 text-sm text-status-error animate-down">{error}</div>}
 
       <div className="grid grid-cols-4 gap-3">
-        <Metric label="Pages" value={stats?.total_pages ?? 0} delay={0} />
-        <Metric label="Chunks" value={stats?.total_chunks ?? 0} delay={50} />
-        <Metric label="Links" value={stats?.total_links ?? 0} delay={100} />
-        <Metric label="Events" value={stats?.total_timeline_entries ?? 0} delay={150} />
+        <Metric label={t("metric.pages", lang)} value={stats?.total_pages ?? 0} delay={0} />
+        <Metric label={t("metric.chunks", lang)} value={stats?.total_chunks ?? 0} delay={50} />
+        <Metric label={t("metric.links", lang)} value={stats?.total_links ?? 0} delay={100} />
+        <Metric label={t("metric.events", lang)} value={stats?.total_timeline_entries ?? 0} delay={150} />
       </div>
 
       <div className="grid grid-cols-2 gap-4">
@@ -63,9 +63,9 @@ export function Dashboard() {
           <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-3">{t("dash.health", lang)}</div>
           {health && (
             <div className="space-y-3">
-              <ProgressBar label="Embed Coverage" value={health.embed_coverage} />
-              <Row label="Stale" value={health.stale_pages} warn={health.stale_pages > 0} />
-              <Row label="Orphans" value={health.orphan_pages} warn={health.orphan_pages > 0} />
+              <ProgressBar label={t("metric.coverage", lang)} value={health.embed_coverage} />
+              <Row label={t("metric.stale", lang)} value={health.stale_pages} warn={health.stale_pages > 0} />
+              <Row label={t("metric.orphans", lang)} value={health.orphan_pages} warn={health.orphan_pages > 0} />
             </div>
           )}
         </div>

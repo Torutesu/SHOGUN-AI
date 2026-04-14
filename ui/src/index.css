@@ -3,54 +3,50 @@
 @tailwind utilities;
 
 @layer base {
-  :root {
-    --gold-glow: rgba(201,168,76,0.12);
-  }
+  :root { --gold-glow: rgba(201,168,76,0.12); }
 
   body {
     @apply bg-base text-text-primary font-sans antialiased;
-    font-size: 15px;
-    line-height: 1.6;
-    -webkit-font-smoothing: antialiased;
-    -moz-osx-font-smoothing: grayscale;
+    font-size: 15px; line-height: 1.6;
   }
 
   ::-webkit-scrollbar { width: 5px; }
   ::-webkit-scrollbar-track { @apply bg-base; }
   ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
-  ::-webkit-scrollbar-thumb:hover { @apply bg-text-disabled; }
+
+  @media (prefers-reduced-motion: reduce) {
+    *, *::before, *::after {
+      animation-duration: 0.01ms !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
 }
 
 @layer components {
-  /* Buttons */
   .btn-gold {
     @apply bg-gold hover:bg-gold-light text-base font-semibold
            py-2 px-5 rounded-md transition-all duration-200
            focus:outline-none focus:ring-2 focus:ring-gold/30
            active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
+    color: #0A0A0A;
   }
-
   .btn-surface {
     @apply bg-surface-alt hover:bg-border text-text-secondary hover:text-text-primary
            font-medium py-2 px-4 rounded-md transition-all duration-200
-           border border-border
+           border border-border focus:outline-none focus:ring-2 focus:ring-gold/20
            active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
   }
-
   .btn-ghost {
     @apply text-text-secondary hover:text-text-primary hover:bg-surface-alt
-           font-medium py-1.5 px-3 rounded-md transition-all duration-200;
+           font-medium py-1.5 px-3 rounded-md transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-gold/20;
   }
-
-  /* Inputs */
   .input {
     @apply bg-input-bg border border-border rounded-md
            px-3 py-2 text-text-primary text-sm placeholder-text-disabled
            focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold-dim
            w-full transition-all duration-200;
   }
-
-  /* Cards */
   .card {
     @apply bg-surface border border-border rounded-lg p-4 transition-all duration-200;
   }
@@ -60,8 +56,6 @@
   .card-gold {
     @apply bg-surface border border-gold-dim rounded-lg p-4 shadow-glow;
   }
-
-  /* Sidebar */
   .nav-item {
     @apply flex items-center gap-2.5 px-2 py-[5px] rounded-sm text-sm font-medium
            text-text-secondary hover:text-text-primary hover:bg-surface-alt
@@ -70,37 +64,19 @@
   .nav-item-active {
     @apply bg-surface-alt text-text-primary border-l-2 border-gold pl-[6px];
   }
-
-  /* Gold dot pulse */
-  .dot-pulse {
-    @apply w-2 h-2 rounded-full bg-gold animate-gold-pulse;
-  }
-
-  /* Status badges */
-  .badge {
-    @apply text-xs font-medium px-2 py-0.5 rounded-full;
-  }
+  .dot-pulse { @apply w-2 h-2 rounded-full bg-gold animate-gold-pulse; }
+  .badge { @apply text-xs font-medium px-2 py-0.5 rounded-full; }
   .badge-active { @apply bg-status-active/15 text-status-active; }
   .badge-warn { @apply bg-status-warn/15 text-status-warn; }
   .badge-error { @apply bg-status-error/15 text-status-error; }
-  .badge-info { @apply bg-status-info/15 text-status-info; }
   .badge-gold { @apply bg-gold/10 text-gold; }
+  .section-label { @apply text-[10px] text-text-disabled font-medium uppercase tracking-[0.08em]; }
 }
 
-/* Animations */
-@keyframes fadeIn {
-  from { opacity: 0; }
-  to { opacity: 1; }
-}
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-@keyframes slideDown {
-  from { opacity: 0; transform: translateY(-8px); }
-  to { opacity: 1; transform: translateY(0); }
-}
+@keyframes fadeIn { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp { from { opacity: 0; transform: translateY(8px) } to { opacity: 1; transform: translateY(0) } }
+@keyframes slideDown { from { opacity: 0; transform: translateY(-8px) } to { opacity: 1; transform: translateY(0) } }
 
 .animate-in { animation: fadeIn 0.2s ease-out forwards; }
-.animate-up { opacity: 0; animation: slideUp 0.3s ease-out forwards; }
+.animate-up { animation: slideUp 0.3s ease-out both; }
 .animate-down { animation: slideDown 0.2s ease-out forwards; }

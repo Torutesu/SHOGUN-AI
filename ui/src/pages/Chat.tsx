@@ -31,7 +31,7 @@ export function Chat() {
         citations: r?.citations,
       }]);
     } catch {
-      setMsgs((p) => [...p, { role: "assistant", content: "Failed — check API keys in Settings." }]);
+      setMsgs((p) => [...p, { role: "assistant", content: t("chat.error", lang) }]);
     }
     setLoading(false);
   };
@@ -61,7 +61,7 @@ export function Chat() {
             </div>
             <div className="flex flex-wrap justify-center gap-2 max-w-md">
               {suggestions.map((q) => (
-                <button key={q} onClick={() => setInput(q)}
+                <button key={q} onClick={() => { setInput(q); setTimeout(() => send(), 0); }}
                   className="text-xs px-3 py-1.5 rounded-md bg-surface border border-border-subtle text-text-secondary hover:border-border hover:text-text-primary transition-all">
                   {q}
                 </button>
@@ -80,7 +80,7 @@ export function Chat() {
               <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
               {m.citations && m.citations.length > 0 && (
                 <div className="mt-2 pt-2 border-t border-border space-y-1">
-                  <div className="text-[10px] text-text-disabled uppercase tracking-widest">Sources</div>
+                  <div className="text-[10px] text-text-disabled uppercase tracking-widest">{t("chat.sources", lang)}</div>
                   {m.citations.map((c, j) => (
                     <a key={j} href={`/page/${encodeURIComponent(c.slug)}`}
                       className="block text-xs text-gold hover:text-gold-light transition-colors">
