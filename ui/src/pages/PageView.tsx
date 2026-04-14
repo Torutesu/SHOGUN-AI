@@ -12,139 +12,74 @@ export function PageView() {
 
   useEffect(() => {
     if (!slug) return;
-    setLoading(true);
-    setError(null);
+    setLoading(true); setError(null);
     api.getPage(decodeURIComponent(slug))
-      .then((p) => {
-        setPage(p);
-        setLoading(false);
-      })
-      .catch((err) => {
-        setError(err instanceof Error ? err.message : "Failed to load page");
-        setLoading(false);
-      });
+      .then((p) => { setPage(p); setLoading(false); })
+      .catch((e) => { setError(String(e)); setLoading(false); });
   }, [slug]);
 
   const handleDelete = async () => {
-    if (!confirm("このページを削除しますか？/ Delete this page?")) return;
+    if (!confirm("Delete this page?")) return;
     setDeleting(true);
-    try {
-      await api.deletePage(page!.slug);
-      navigate("/");
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to delete");
-      setDeleting(false);
-    }
+    try { await api.deletePage(page!.slug); navigate("/"); }
+    catch (e) { setError(String(e)); setDeleting(false); }
   };
 
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-full">
-        <div className="w-6 h-6 border-2 border-shogun-red border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
+  if (error) return <div className="p-6 text-center"><p className="text-sm text-status-error">{error}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">← Back</button></div>;
+  if (!page) return <div className="p-6 text-center"><p className="text-sm text-text-disabled">Page not found</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">← Back</button></div>;
 
-  if (error) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <div className="text-5xl">&#x26A0;&#xFE0F;</div>
-        <h2 className="text-xl font-semibold">Error</h2>
-        <p className="text-shogun-muted">{error}</p>
-        <button onClick={() => navigate(-1)} className="btn-secondary">
-          ← 戻る / Go Back
-        </button>
-      </div>
-    );
-  }
-
-  if (!page) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <div className="text-5xl">&#x1F4AD;</div>
-        <h2 className="text-xl font-semibold">Page not found</h2>
-        <p className="text-shogun-muted">{slug}</p>
-        <button onClick={() => navigate(-1)} className="btn-secondary">
-          ← 戻る / Go Back
-        </button>
-      </div>
-    );
-  }
-
-  const typeIcon: Record<string, string> = {
-    person: "\u{1F464}",
-    company: "\u{1F3E2}",
-    session: "\u{1F4C5}",
-    concept: "\u{1F4A1}",
-  };
+  const icon: Record<string, string> = { person: "👤", company: "🏢", session: "📅", concept: "💡" };
 
   return (
-    <div className="p-8 max-w-3xl space-y-6 animate-fadeIn">
-      <button onClick={() => navigate(-1)} className="text-shogun-muted hover:text-white text-sm">
-        ← 戻る / Back
-      </button>
+    <div className="p-6 max-w-[680px] mx-auto space-y-5 animate-in">
+      <button onClick={() => navigate(-1)} className="text-xs text-text-disabled hover:text-text-secondary transition-colors">← Back</button>
 
-      <div className="flex items-start gap-4">
-        <span className="text-4xl">{typeIcon[page.page_type] ?? "\u{1F4C4}"}</span>
+      {/* Header */}
+      <div className="flex items-start gap-3">
+        <span className="text-2xl">{icon[page.page_type] ?? "📄"}</span>
         <div>
-          <h1 className="text-3xl font-bold">{page.title}</h1>
-          <div className="flex items-center gap-3 mt-2">
-            <span className="text-xs px-2 py-1 rounded bg-white/10 text-shogun-muted">
-              {page.page_type}
-            </span>
-            <span className="text-xs text-shogun-muted">{page.slug}</span>
+          <h1 className="text-lg font-semibold">{page.title}</h1>
+          <div className="flex items-center gap-2 mt-1">
+            <span className="badge badge-gold text-[10px]">{page.page_type}</span>
+            <span className="text-[11px] text-text-disabled font-mono">{page.slug}</span>
           </div>
         </div>
       </div>
 
+      {/* Tags */}
       {page.tags.length > 0 && (
-        <div className="flex flex-wrap gap-2">
-          {page.tags.map((tag) => (
-            <span key={tag} className="text-xs px-3 py-1 rounded-full bg-shogun-red/20 text-shogun-red">
-              {tag}
-            </span>
-          ))}
+        <div className="flex flex-wrap gap-1.5">
+          {page.tags.map((t) => <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold">{t}</span>)}
         </div>
       )}
 
-      <div className="card space-y-3">
-        <h2 className="text-sm font-semibold text-shogun-muted uppercase tracking-wider">
-          Compiled Truth
-        </h2>
-        <div className="prose prose-invert max-w-none whitespace-pre-wrap">
-          {page.compiled_truth}
-        </div>
+      {/* Truth */}
+      <div className="card">
+        <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">Compiled Truth</div>
+        <div className="text-sm leading-relaxed whitespace-pre-wrap">{page.compiled_truth}</div>
       </div>
 
+      {/* Timeline */}
       {page.timeline && (
-        <div className="card space-y-3">
-          <h2 className="text-sm font-semibold text-shogun-muted uppercase tracking-wider">
-            Timeline
-          </h2>
-          <div className="space-y-2 text-sm">
+        <div className="card">
+          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">Timeline</div>
+          <div className="space-y-1.5">
             {page.timeline.split("\n").filter(Boolean).map((line, i) => (
-              <div key={i} className="flex items-start gap-2">
-                <span className="text-shogun-red mt-0.5">&#x2022;</span>
-                <span>{line.replace(/^- /, "")}</span>
+              <div key={i} className="flex items-start gap-2 text-xs">
+                <span className="text-gold mt-0.5">•</span>
+                <span className="text-text-secondary">{line.replace(/^- /, "")}</span>
               </div>
             ))}
           </div>
         </div>
       )}
 
-      <div className="flex gap-3">
-        <button
-          onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)}
-          className="btn-primary"
-        >
-          編集 / Edit
-        </button>
-        <button
-          onClick={handleDelete}
-          disabled={deleting}
-          className="btn-secondary text-red-400 hover:text-red-300"
-        >
-          {deleting ? "削除中..." : "削除 / Delete"}
+      {/* Actions */}
+      <div className="flex gap-2">
+        <button onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)} className="btn-gold">Edit</button>
+        <button onClick={handleDelete} disabled={deleting} className="btn-surface text-status-error">
+          {deleting ? "Deleting..." : "Delete"}
         </button>
       </div>
     </div>

@@ -8,148 +8,100 @@ export function Dashboard() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dreamRunning, setDreamRunning] = useState(false);
-  const [dreamResult, setDreamResult] = useState<string | null>(null);
+  const [dreamDone, setDreamDone] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
     Promise.all([
       api.getBrainStats().then(setStats),
       api.getHealth().then(setHealth),
-    ])
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load"))
+    ]).catch((e) => setError(e instanceof Error ? e.message : "Failed"))
       .finally(() => setLoading(false));
   }, []);
 
-  const handleDreamCycle = async () => {
-    setDreamRunning(true);
-    setDreamResult(null);
-    try {
-      await api.runDreamCycle();
-      setDreamResult("Dream Cycle completed!");
-      // Refresh stats
-      api.getBrainStats().then(setStats);
-      api.getHealth().then(setHealth);
-    } catch (err) {
-      setDreamResult(`Failed: ${err instanceof Error ? err.message : "Unknown error"}`);
-    }
-    setDreamRunning(false);
-    setTimeout(() => setDreamResult(null), 5000);
-  };
-
-  // Greeting based on time
   const hour = new Date().getHours();
-  const greeting = hour < 12 ? "おはようございます" : hour < 18 ? "こんにちは" : "こんばんは";
-  const brainLevel = getBrainLevel(stats?.total_pages ?? 0);
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  const score = getScore(stats?.total_pages ?? 0);
 
-  if (loading) {
-    return (
-      <div className="p-8 flex items-center justify-center h-full">
-        <div className="w-6 h-6 border-2 border-shogun-red border-t-transparent rounded-full animate-spin" />
-      </div>
-    );
-  }
+  if (loading) return <Loading />;
 
   return (
-    <div className="p-8 space-y-8 animate-fadeIn">
-      {/* Greeting + Intelligence Score */}
-      <div className="flex items-center justify-between">
+    <div className="p-6 max-w-[960px] mx-auto space-y-6 animate-in">
+      {/* Header */}
+      <div className="flex items-start justify-between">
         <div>
-          <h1 className="text-3xl font-bold">{greeting}!</h1>
-          <p className="text-shogun-muted mt-1">
+          <h1 className="text-xl font-semibold">{greeting}</h1>
+          <p className="text-sm text-text-secondary mt-0.5">
             {stats && stats.total_pages > 0
-              ? `${stats.total_pages.toLocaleString()}件のメモリがあなたを待っています`
-              : "SHOGUNへようこそ。最初のメモリを作りましょう"}
+              ? `${stats.total_pages.toLocaleString()} memories indexed`
+              : "Let's build your first memory"}
           </p>
         </div>
         {stats && stats.total_pages > 0 && (
-          <div className="text-center">
-            <div className="text-3xl font-bold text-shogun-red">{brainLevel.score}</div>
-            <div className="text-xs text-shogun-muted">{brainLevel.label}</div>
+          <div className="text-right">
+            <div className="text-2xl font-semibold text-gold">{score.value}</div>
+            <div className="text-[10px] text-text-disabled uppercase tracking-widest">{score.label}</div>
           </div>
         )}
       </div>
 
-      {error && (
-        <div className="bg-red-500/10 border border-red-500/30 rounded-lg px-4 py-3 text-red-400 text-sm">
-          {error}
-        </div>
-      )}
+      {error && <ErrorBanner message={error} />}
 
-      {/* Stats Grid */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard label="Pages" value={stats?.total_pages ?? 0} icon="📄" delay={0} />
-        <StatCard label="Chunks" value={stats?.total_chunks ?? 0} icon="📦" delay={50} />
-        <StatCard label="Links" value={stats?.total_links ?? 0} icon="🔗" delay={100} />
-        <StatCard label="Timeline" value={stats?.total_timeline_entries ?? 0} icon="📅" delay={150} />
+      {/* Metrics */}
+      <div className="grid grid-cols-4 gap-3">
+        <Metric label="Pages" value={stats?.total_pages ?? 0} delay={0} />
+        <Metric label="Chunks" value={stats?.total_chunks ?? 0} delay={50} />
+        <Metric label="Links" value={stats?.total_links ?? 0} delay={100} />
+        <Metric label="Events" value={stats?.total_timeline_entries ?? 0} delay={150} />
       </div>
 
-      {/* Health & Quick Actions */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Health */}
-        <div className="card animate-slideUp" style={{ animationDelay: "200ms" }}>
-          <h2 className="text-lg font-semibold mb-4">Brain Health</h2>
+      <div className="grid grid-cols-2 gap-4">
+        {/* Brain Health */}
+        <div className="card animate-up" style={{ animationDelay: "200ms" }}>
+          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-3">Brain Health</div>
           {health && (
             <div className="space-y-3">
-              <HealthBar label="Embed Coverage" value={health.embed_coverage} color="bg-green-500" />
-              <div className="flex justify-between text-sm">
-                <span className="text-shogun-muted">Stale Pages</span>
-                <span className={health.stale_pages > 0 ? "text-yellow-400" : "text-green-400"}>
-                  {health.stale_pages}
-                </span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-shogun-muted">Orphan Pages</span>
-                <span className={health.orphan_pages > 0 ? "text-yellow-400" : "text-green-400"}>
-                  {health.orphan_pages}
-                </span>
-              </div>
+              <ProgressBar label="Embed Coverage" value={health.embed_coverage} />
+              <Row label="Stale" value={health.stale_pages} warn={health.stale_pages > 0} />
+              <Row label="Orphans" value={health.orphan_pages} warn={health.orphan_pages > 0} />
             </div>
           )}
         </div>
 
         {/* Quick Actions */}
-        <div className="card animate-slideUp" style={{ animationDelay: "300ms" }}>
-          <h2 className="text-lg font-semibold mb-4">Quick Actions</h2>
-          <div className="space-y-2">
-            <button
+        <div className="card animate-up" style={{ animationDelay: "300ms" }}>
+          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-3">Actions</div>
+          <div className="space-y-1.5">
+            <ActionBtn
+              icon="🧠"
+              label="Ask Memory"
+              sub="Chat with your brain"
               onClick={() => navigate("/chat")}
-              className="btn-secondary w-full text-left flex items-center gap-3"
-            >
-              <span>🧠</span>
-              <div>
-                <p className="font-medium">メモリに聞く / Ask Memory</p>
-                <p className="text-xs text-shogun-muted">AIが記憶を使って回答</p>
-              </div>
-            </button>
-            <button
+            />
+            <ActionBtn
+              icon="🔍"
+              label="Search"
+              sub="Full-text + semantic"
               onClick={() => navigate("/search")}
-              className="btn-secondary w-full text-left flex items-center gap-3"
-            >
-              <span>🔍</span>
-              <div>
-                <p className="font-medium">検索 / Search</p>
-                <p className="text-xs text-shogun-muted">メモリを検索する</p>
-              </div>
-            </button>
-            <button
-              onClick={handleDreamCycle}
-              disabled={dreamRunning}
-              className="btn-secondary w-full text-left flex items-center gap-3 disabled:opacity-50"
-            >
-              {dreamRunning ? (
-                <div className="w-5 h-5 border-2 border-shogun-muted border-t-transparent rounded-full animate-spin" />
-              ) : (
-                <span>🌙</span>
-              )}
-              <div>
-                <p className="font-medium">
-                  {dreamRunning ? "実行中..." : "Dream Cycle"}
-                </p>
-                <p className="text-xs text-shogun-muted">
-                  {dreamResult ?? "同期・整理・ヘルスチェック"}
-                </p>
-              </div>
-            </button>
+            />
+            <ActionBtn
+              icon={dreamRunning ? undefined : "🌙"}
+              label={dreamRunning ? "Running..." : dreamDone ? "✓ Complete" : "Dream Cycle"}
+              sub="Sync, embed, health check"
+              spinning={dreamRunning}
+              onClick={async () => {
+                if (dreamRunning) return;
+                setDreamRunning(true);
+                try {
+                  await api.runDreamCycle();
+                  setDreamDone(true);
+                  api.getBrainStats().then(setStats);
+                  api.getHealth().then(setHealth);
+                  setTimeout(() => setDreamDone(false), 3000);
+                } catch {}
+                setDreamRunning(false);
+              }}
+            />
           </div>
         </div>
       </div>
@@ -157,41 +109,77 @@ export function Dashboard() {
   );
 }
 
-function StatCard({ label, value, icon, delay }: { label: string; value: number; icon: string; delay: number }) {
+function Loading() {
   return (
-    <div className="card flex items-center gap-4 animate-slideUp" style={{ animationDelay: `${delay}ms` }}>
-      <span className="text-2xl">{icon}</span>
-      <div>
-        <p className="text-2xl font-bold">{value.toLocaleString()}</p>
-        <p className="text-sm text-shogun-muted">{label}</p>
-      </div>
+    <div className="flex items-center justify-center h-full">
+      <div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" />
     </div>
   );
 }
 
-function HealthBar({ label, value, color }: { label: string; value: number; color: string }) {
+function ErrorBanner({ message }: { message: string }) {
+  return (
+    <div className="bg-status-error/10 border border-status-error/20 rounded-md px-3 py-2 text-sm text-status-error animate-down">
+      {message}
+    </div>
+  );
+}
+
+function Metric({ label, value, delay }: { label: string; value: number; delay: number }) {
+  return (
+    <div className="card animate-up" style={{ animationDelay: `${delay}ms` }}>
+      <div className="text-xl font-semibold">{value.toLocaleString()}</div>
+      <div className="text-[10px] text-text-disabled uppercase tracking-widest mt-0.5">{label}</div>
+    </div>
+  );
+}
+
+function ProgressBar({ label, value }: { label: string; value: number }) {
   const pct = Math.round(value * 100);
   return (
-    <div className="space-y-1">
-      <div className="flex justify-between text-sm">
-        <span className="text-shogun-muted">{label}</span>
-        <span>{pct}%</span>
+    <div>
+      <div className="flex justify-between text-xs mb-1">
+        <span className="text-text-secondary">{label}</span>
+        <span className="text-text-primary">{pct}%</span>
       </div>
-      <div className="h-2 bg-white/10 rounded-full overflow-hidden">
-        <div
-          className={`h-full ${color} rounded-full transition-all duration-1000 ease-out`}
-          style={{ width: `${pct}%` }}
-        />
+      <div className="h-1 bg-border rounded-full overflow-hidden">
+        <div className="h-full bg-gold rounded-full transition-all duration-1000" style={{ width: `${pct}%` }} />
       </div>
     </div>
   );
 }
 
-function getBrainLevel(pages: number): { score: number; label: string } {
-  if (pages >= 10000) return { score: 99, label: "全知 / Omniscient" };
-  if (pages >= 5000) return { score: 85, label: "賢者 / Sage" };
-  if (pages >= 1000) return { score: 70, label: "学者 / Scholar" };
-  if (pages >= 100) return { score: 50, label: "見習い / Apprentice" };
-  if (pages >= 10) return { score: 25, label: "初心者 / Novice" };
-  return { score: Math.max(1, pages), label: "覚醒 / Awakening" };
+function Row({ label, value, warn }: { label: string; value: number; warn: boolean }) {
+  return (
+    <div className="flex justify-between text-xs">
+      <span className="text-text-secondary">{label}</span>
+      <span className={warn ? "text-status-warn" : "text-status-active"}>{value}</span>
+    </div>
+  );
+}
+
+function ActionBtn({ icon, label, sub, onClick, spinning }: {
+  icon?: string; label: string; sub: string; onClick: () => void; spinning?: boolean;
+}) {
+  return (
+    <button onClick={onClick} className="btn-surface w-full text-left flex items-center gap-3 py-2">
+      {spinning
+        ? <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" />
+        : <span className="text-base">{icon}</span>
+      }
+      <div className="min-w-0">
+        <div className="text-sm font-medium text-text-primary truncate">{label}</div>
+        <div className="text-[11px] text-text-disabled truncate">{sub}</div>
+      </div>
+    </button>
+  );
+}
+
+function getScore(pages: number) {
+  if (pages >= 10000) return { value: 99, label: "Omniscient" };
+  if (pages >= 5000) return { value: 85, label: "Sage" };
+  if (pages >= 1000) return { value: 70, label: "Scholar" };
+  if (pages >= 100) return { value: 50, label: "Apprentice" };
+  if (pages >= 10) return { value: 25, label: "Novice" };
+  return { value: Math.max(1, pages), label: "Awakening" };
 }

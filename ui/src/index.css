@@ -3,62 +3,88 @@
 @tailwind utilities;
 
 @layer base {
+  :root {
+    --gold-glow: rgba(201,168,76,0.12);
+  }
+
   body {
-    @apply bg-shogun-navy text-shogun-text font-sans antialiased;
+    @apply bg-base text-text-primary font-sans antialiased;
+    font-size: 15px;
+    line-height: 1.6;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
   }
 
-  ::-webkit-scrollbar {
-    width: 6px;
-  }
-  ::-webkit-scrollbar-track {
-    @apply bg-shogun-navy;
-  }
-  ::-webkit-scrollbar-thumb {
-    @apply bg-shogun-ocean rounded-full;
-  }
+  ::-webkit-scrollbar { width: 5px; }
+  ::-webkit-scrollbar-track { @apply bg-base; }
+  ::-webkit-scrollbar-thumb { @apply bg-border rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-text-disabled; }
 }
 
 @layer components {
-  .btn-primary {
-    @apply bg-shogun-red hover:bg-shogun-red-light text-white font-semibold
-           py-3 px-6 rounded-lg transition-all duration-200
-           focus:outline-none focus:ring-2 focus:ring-shogun-red/50
-           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  /* Buttons */
+  .btn-gold {
+    @apply bg-gold hover:bg-gold-light text-base font-semibold
+           py-2 px-5 rounded-md transition-all duration-200
+           focus:outline-none focus:ring-2 focus:ring-gold/30
+           active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
-  .btn-secondary {
-    @apply bg-shogun-ocean hover:bg-shogun-ocean/80 text-shogun-text font-medium
-           py-2 px-4 rounded-lg transition-all duration-200
-           border border-white/10
-           active:scale-[0.98] disabled:opacity-50 disabled:cursor-not-allowed;
+  .btn-surface {
+    @apply bg-surface-alt hover:bg-border text-text-secondary hover:text-text-primary
+           font-medium py-2 px-4 rounded-md transition-all duration-200
+           border border-border
+           active:scale-[0.98] disabled:opacity-40 disabled:cursor-not-allowed;
   }
 
-  .input-field {
-    @apply bg-shogun-ocean border border-white/10 rounded-lg
-           px-4 py-3 text-shogun-text placeholder-shogun-muted
-           focus:outline-none focus:ring-2 focus:ring-shogun-red/50 focus:border-shogun-red
+  .btn-ghost {
+    @apply text-text-secondary hover:text-text-primary hover:bg-surface-alt
+           font-medium py-1.5 px-3 rounded-md transition-all duration-200;
+  }
+
+  /* Inputs */
+  .input {
+    @apply bg-input-bg border border-border rounded-md
+           px-3 py-2 text-text-primary text-sm placeholder-text-disabled
+           focus:outline-none focus:ring-1 focus:ring-gold/40 focus:border-gold-dim
            w-full transition-all duration-200;
   }
 
+  /* Cards */
   .card {
-    @apply bg-shogun-navy-light border border-white/10 rounded-xl p-6
-           transition-all duration-200;
+    @apply bg-surface border border-border rounded-lg p-4 transition-all duration-200;
   }
-
   .card-interactive {
-    @apply card hover:border-shogun-red/30 cursor-pointer active:scale-[0.99];
+    @apply card hover:border-gold-dim cursor-pointer active:scale-[0.995];
+  }
+  .card-gold {
+    @apply bg-surface border border-gold-dim rounded-lg p-4 shadow-glow;
   }
 
-  .sidebar-link {
-    @apply flex items-center gap-3 px-4 py-3 rounded-lg text-shogun-muted
-           hover:text-shogun-text hover:bg-white/5 transition-all duration-200;
+  /* Sidebar */
+  .nav-item {
+    @apply flex items-center gap-2.5 px-2 py-[5px] rounded-sm text-sm font-medium
+           text-text-secondary hover:text-text-primary hover:bg-surface-alt
+           transition-all duration-200 cursor-pointer;
+  }
+  .nav-item-active {
+    @apply bg-surface-alt text-text-primary border-l-2 border-gold pl-[6px];
   }
 
-  .sidebar-link-active {
-    @apply text-shogun-text bg-white/10;
+  /* Gold dot pulse */
+  .dot-pulse {
+    @apply w-2 h-2 rounded-full bg-gold animate-gold-pulse;
   }
+
+  /* Status badges */
+  .badge {
+    @apply text-xs font-medium px-2 py-0.5 rounded-full;
+  }
+  .badge-active { @apply bg-status-active/15 text-status-active; }
+  .badge-warn { @apply bg-status-warn/15 text-status-warn; }
+  .badge-error { @apply bg-status-error/15 text-status-error; }
+  .badge-info { @apply bg-status-info/15 text-status-info; }
+  .badge-gold { @apply bg-gold/10 text-gold; }
 }
 
 /* Animations */
@@ -66,35 +92,15 @@
   from { opacity: 0; }
   to { opacity: 1; }
 }
-
 @keyframes slideUp {
-  from { opacity: 0; transform: translateY(12px); }
+  from { opacity: 0; transform: translateY(8px); }
   to { opacity: 1; transform: translateY(0); }
 }
-
 @keyframes slideDown {
-  from { opacity: 0; transform: translateY(-12px); }
+  from { opacity: 0; transform: translateY(-8px); }
   to { opacity: 1; transform: translateY(0); }
 }
 
-@keyframes scaleIn {
-  from { opacity: 0; transform: scale(0.95); }
-  to { opacity: 1; transform: scale(1); }
-}
-
-.animate-fadeIn {
-  animation: fadeIn 0.3s ease-out forwards;
-}
-
-.animate-slideUp {
-  opacity: 0;
-  animation: slideUp 0.4s ease-out forwards;
-}
-
-.animate-slideDown {
-  animation: slideDown 0.3s ease-out forwards;
-}
-
-.animate-scaleIn {
-  animation: scaleIn 0.2s ease-out forwards;
-}
+.animate-in { animation: fadeIn 0.2s ease-out forwards; }
+.animate-up { opacity: 0; animation: slideUp 0.3s ease-out forwards; }
+.animate-down { animation: slideDown 0.2s ease-out forwards; }
