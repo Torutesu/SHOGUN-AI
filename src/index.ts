@@ -84,6 +84,13 @@ export { SHOGUN_IDENTITY, SYSTEM_PROMPTS, getGreeting, getMemoryInsight } from "
 export { ViralEngine, calculateIntelligenceScore } from "./growth/index.js";
 export type { ShareableCard } from "./growth/index.js";
 
+// Sync
+export { SupabaseSync, DeltaSyncEngine } from "./sync/index.js";
+export type { SupabaseConfig } from "./sync/index.js";
+
+// Telemetry
+export { PostHogClient, SentryClient, ResendClient } from "./telemetry/index.js";
+
 // Logger
 export { logger } from "./logger.js";
 
