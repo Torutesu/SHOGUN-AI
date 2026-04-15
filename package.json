@@ -16,7 +16,8 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint src/",
     "start:mcp": "node dist/mcp/server.js",
-    "start:bridge": "node dist/bridge/server.js"
+    "start:bridge": "node dist/bridge/server.js",
+    "start:http": "node dist/bridge/http-server.js"
   },
   "dependencies": {
     "@electric-sql/pglite": "^0.2.17",

@@ -50,19 +50,32 @@ fn main() {
                 }
             }
 
-            // Start the Node.js bridge
-            if let Err(e) = commands::init_bridge(
-                &data_dir, pii_removal,
-                openai_key.as_deref(), anthropic_key.as_deref(),
-                &embedding_tier, encryption_passphrase.as_deref(),
-            ) {
-                eprintln!("[SHOGUN] Bridge init failed: {}", e);
+            // Start the Node.js HTTP bridge server
+            let bridge_path = find_bridge_http_path();
+            if let Some(path) = bridge_path {
+                eprintln!("[SHOGUN] Starting HTTP bridge: {}", path.display());
+                let mut cmd = std::process::Command::new("node");
+                cmd.arg(&path)
+                    .env("SHOGUN_DATA_DIR", &data_dir)
+                    .env("SHOGUN_PII_REMOVAL", if pii_removal { "true" } else { "false" })
+                    .env("SHOGUN_LOG_LEVEL", "info")
+                    .env("SHOGUN_PORT", "3847")
+                    .env("SHOGUN_EMBEDDING_TIER", &embedding_tier);
+
+                if let Some(ref key) = openai_key { cmd.env("OPENAI_API_KEY", key); }
+                if let Some(ref key) = anthropic_key { cmd.env("ANTHROPIC_API_KEY", key); }
+
+                match cmd.spawn() {
+                    Ok(_child) => eprintln!("[SHOGUN] HTTP bridge started on port 3847"),
+                    Err(e) => eprintln!("[SHOGUN] Bridge start failed: {}", e),
+                }
+            } else {
+                eprintln!("[SHOGUN] Warning: bridge http-server.js not found. Run 'npm run build'.");
             }
 
             // Auto-start capture after bridge is ready
             let capture: Arc<CaptureState> = app.handle().state::<Arc<CaptureState>>().inner().clone();
             std::thread::spawn(move || {
-                // Wait for bridge to initialize
                 std::thread::sleep(std::time::Duration::from_secs(5));
                 eprintln!("[SHOGUN] Starting capture...");
                 capture.start();
@@ -120,4 +133,21 @@ fn main() {
         ])
         .run(tauri::generate_context!())
         .expect("error while running SHOGUN");
+}
+
+/// Find the HTTP bridge server script.
+fn find_bridge_http_path() -> Option<std::path::PathBuf> {
+    let mut dir = std::env::current_dir().unwrap_or_default();
+    for _ in 0..5 {
+        let candidate = dir.join("dist/bridge/http-server.js");
+        if candidate.exists() {
+            return Some(candidate);
+        }
+        if let Some(parent) = dir.parent() {
+            dir = parent.to_path_buf();
+        } else {
+            break;
+        }
+    }
+    None
 }

@@ -58,20 +58,53 @@ interface PageListItem {
   updated_at: string;
 }
 
-// Check if running inside Tauri
-const isTauri = typeof window !== "undefined" && "__TAURI__" in window;
+// Bridge HTTP base URL
+const BRIDGE_URL = "http://localhost:3847";
+
+// Map command names to HTTP endpoints
+const CMD_TO_PATH: Record<string, { method: string; path: string }> = {
+  get_brain_stats: { method: "GET", path: "/api/stats" },
+  get_health: { method: "GET", path: "/api/health" },
+  search_memory: { method: "POST", path: "/api/search" },
+  hybrid_search: { method: "POST", path: "/api/search" },
+  get_page: { method: "POST", path: "/api/page" },
+  put_page: { method: "POST", path: "/api/page/put" },
+  delete_page: { method: "POST", path: "/api/page/delete" },
+  list_pages: { method: "GET", path: "/api/pages" },
+  chat: { method: "POST", path: "/api/chat" },
+  run_dream_cycle: { method: "POST", path: "/api/dream" },
+  get_timeline_range: { method: "POST", path: "/api/timeline" },
+  load_settings: { method: "GET", path: "/api/settings/load" },
+  save_settings: { method: "POST", path: "/api/settings/save" },
+};
 
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
-  if (isTauri) {
+  // Strategy 1: Try HTTP bridge (works regardless of Tauri)
+  const route = CMD_TO_PATH[cmd];
+  if (route) {
+    try {
+      const res = await fetch(`${BRIDGE_URL}${route.path}`, {
+        method: route.method,
+        headers: { "Content-Type": "application/json" },
+        body: route.method === "POST" ? JSON.stringify(args ?? {}) : undefined,
+      });
+      if (res.ok) return res.json() as Promise<T>;
+    } catch {
+      // Bridge not running — fall through
+    }
+  }
+
+  // Strategy 2: Try Tauri invoke (if inside Tauri WebView)
+  if (typeof window !== "undefined" && "__TAURI__" in window) {
     try {
       const { invoke: tauriInvoke } = await import("@tauri-apps/api/core");
       return await tauriInvoke<T>(cmd, args);
-    } catch (err) {
-      // Bridge failed — fall back to mock so UI doesn't break
-      console.warn(`[SHOGUN] Bridge call '${cmd}' failed, using mock:`, err);
-      return getMockResponse<T>(cmd, args);
+    } catch {
+      // Tauri invoke failed — fall through
     }
   }
+
+  // Strategy 3: Mock fallback (dev mode)
   return getMockResponse<T>(cmd, args);
 }
 
