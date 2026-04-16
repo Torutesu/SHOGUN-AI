@@ -13,6 +13,7 @@ export interface DreamCycleResult {
   entity_sweep: { new_entities: number; new_links: number };
   citation_fix: { fixed: number };
   consolidation: { candidates: number; merged: number; skipped: number };
+  agent_learnings?: { flagged_skills: string[]; lesson_candidates: { skill: string; error: string; pain_score: number }[] };
   health: HealthReport;
 }
 
@@ -103,7 +104,18 @@ export class DreamCycle {
       logger.debug("Consolidation skipped: no LLM router configured");
     }
 
-    // Step 6: Health check
+    // Step 6: Process agent failure learnings
+    let agentLearningsResult: DreamCycleResult["agent_learnings"] = undefined;
+    try {
+      const { AgentLearnings } = await import("../agents/learnings.js");
+      const learnings = new AgentLearnings(this.brain.engine);
+      await learnings.init();
+      agentLearningsResult = await learnings.processDreamCycle();
+    } catch (error: unknown) {
+      logger.debug(`Agent learnings processing skipped: ${(error as Error).message}`);
+    }
+
+    // Step 7: Health check
     const health = await this.brain.getHealth();
 
     const result: DreamCycleResult = {
@@ -114,6 +126,7 @@ export class DreamCycle {
       entity_sweep: entityResult,
       citation_fix: citationResult,
       consolidation: consolidationResult,
+      agent_learnings: agentLearningsResult,
       health,
     };
 
