@@ -70,6 +70,9 @@ function useRuntimeActions() {
   return { run, confirmWrite, toast };
 }
 
+/** Sections map from `app_settings_load` → `settings.sections`; consumed by settings panes. */
+const SettingsHydrationContext = React.createContext({ sections: {} });
+
 function Pane({title, jp, children, subtitle}) {
   return (
     <div className="s-pane">
@@ -87,9 +90,17 @@ function Pane({title, jp, children, subtitle}) {
 
 function PaneGeneral() {
   const { run, toast } = useRuntimeActions();
+  const { sections } = React.useContext(SettingsHydrationContext);
   const [name, setName] = useStateS('Toru Tano');
   const [aliases, setAliases] = useStateS('torubj0904@gmail.com, @toru, toru.t');
   const [email, setEmail] = useStateS('torubj0904@gmail.com');
+  React.useEffect(() => {
+    const g = sections.general;
+    if (!g || typeof g !== 'object') return;
+    if (g.name != null) setName(String(g.name));
+    if (g.aliases != null) setAliases(String(g.aliases));
+    if (g.email != null) setEmail(String(g.email));
+  }, [sections]);
   return (
     <Pane title="General" jp="一般">
       <Field label="What should SHOGUN call you?">
@@ -101,7 +112,7 @@ function PaneGeneral() {
       <Field label="Email">
         <div className="row" style={{gap:8}}>
           <input className="s-input" value={email} onChange={e=>setEmail(e.target.value)} style={{flex:1}}/>
-          <button className="btn btn-sm btn-secondary" onClick={()=>run('settings.save', { section:'general', email }, { successMessage:'Email updated' })}><Icon name="edit" size={12}/></button>
+          <button className="btn btn-sm btn-secondary" onClick={()=>run('settings.save', { section:'general', name, aliases, email }, { successMessage:'Profile updated' })}><Icon name="edit" size={12}/></button>
         </div>
       </Field>
       <div className="s-meta">
@@ -246,10 +257,18 @@ function PaneData() {
 
 function PaneHummingbird() {
   const { run } = useRuntimeActions();
+  const { sections } = React.useContext(SettingsHydrationContext);
   const [open, setOpen] = useStateS(true);
   const [enabled, setEnabled] = useStateS(true);
   const [alwaysNew, setAlwaysNew] = useStateS(false);
   const [mode, setMode] = useStateS('any_app');
+  React.useEffect(() => {
+    const h = sections.hummingbird;
+    if (!h || typeof h !== 'object') return;
+    if (h.mode != null) setMode(String(h.mode));
+    if (typeof h.enabled === 'boolean') setEnabled(h.enabled);
+    if (typeof h.alwaysNew === 'boolean') setAlwaysNew(h.alwaysNew);
+  }, [sections]);
   return (
     <Pane title="Hummingbird" jp="鳥" subtitle="Chat with anything on your screen — apps, meetings, or selected text.">
       <div className="s-card" style={{padding:0, overflow:'hidden'}}>
@@ -260,9 +279,9 @@ function PaneHummingbird() {
         {open && (
           <div style={{borderTop:'1px solid var(--border)'}}>
             <div className="row" style={{padding:'10px 16px', gap:6}}>
-              <button className="btn btn-sm" style={{background:mode==='any_app'?'var(--surface-2)':'transparent'}} onClick={()=>setMode('any_app')}>Any app</button>
-              <button className="btn btn-sm btn-ghost" onClick={()=>setMode('meeting')}>Ongoing meeting</button>
-              <button className="btn btn-sm btn-ghost" onClick={()=>setMode('selection')}>Selected text</button>
+              <button className="btn btn-sm" style={{background:mode==='any_app'?'var(--surface-2)':'transparent'}} onClick={()=>{ setMode('any_app'); run('settings.save', { section:'hummingbird', mode:'any_app', enabled, alwaysNew }, { silentError:true }); }}>Any app</button>
+              <button className="btn btn-sm btn-ghost" onClick={()=>{ setMode('meeting'); run('settings.save', { section:'hummingbird', mode:'meeting', enabled, alwaysNew }, { silentError:true }); }}>Ongoing meeting</button>
+              <button className="btn btn-sm btn-ghost" onClick={()=>{ setMode('selection'); run('settings.save', { section:'hummingbird', mode:'selection', enabled, alwaysNew }, { silentError:true }); }}>Selected text</button>
             </div>
             <div style={{margin:'0 16px 16px', border:'1px solid var(--border)', borderRadius:'var(--radius-md)', background:'#f4f1ea', padding:'40px 30px', fontFamily:'Georgia, serif', color:'#2a2420', position:'relative', minHeight:180}}>
               <div style={{fontSize:22, fontWeight:500, marginBottom:8}}>Creativity Is a Process, Not an Event</div>
@@ -272,7 +291,7 @@ function PaneHummingbird() {
                 <Kamon size={12} color="var(--gold)"/>
                 <span style={{fontSize:12, color:'var(--text-mute)'}}>Summarize this article about creativity</span>
                 <span className="spacer"/>
-                <button className="btn btn-sm btn-primary" style={{width:22, height:22, padding:0}} onClick={()=>run('settings.save', { section:'hummingbird', mode }, { successMessage:'Hummingbird mode saved' })}><Icon name="arrowUpRight" size={10}/></button>
+                <button className="btn btn-sm btn-primary" style={{width:22, height:22, padding:0}} onClick={()=>run('settings.save', { section:'hummingbird', mode, enabled, alwaysNew }, { successMessage:'Hummingbird mode saved' })}><Icon name="arrowUpRight" size={10}/></button>
               </div>
             </div>
           </div>
@@ -280,13 +299,13 @@ function PaneHummingbird() {
       </div>
       <div className="s-card" style={{marginTop:14}}>
         <Row title="Enable Hummingbird" desc="Open SHOGUN from anywhere and ask about what's on your screen.">
-          <Toggle on={enabled} onClick={()=>setEnabled(!enabled)}/>
+          <Toggle on={enabled} onClick={()=>{ const next = !enabled; setEnabled(next); run('settings.save', { section:'hummingbird', mode, enabled: next, alwaysNew }, { silentError:true }); }}/>
         </Row>
         <Row title="Global Shortcut" desc="Choose the global shortcut used to open Hummingbird">
           <select className="s-select"><option>Tap Option twice</option><option>⌘ + Space</option></select>
         </Row>
         <Row title="Always Start New Chat" desc="Start with a fresh chat each time you open Hummingbird" last>
-          <Toggle on={alwaysNew} onClick={()=>setAlwaysNew(!alwaysNew)}/>
+          <Toggle on={alwaysNew} onClick={()=>{ const next = !alwaysNew; setAlwaysNew(next); run('settings.save', { section:'hummingbird', mode, enabled, alwaysNew: next }, { silentError:true }); }}/>
         </Row>
       </div>
     </Pane>
@@ -332,8 +351,15 @@ function PaneMeetings() {
 
 function PaneChat() {
   const { run, toast } = useRuntimeActions();
+  const { sections } = React.useContext(SettingsHydrationContext);
   const [instr, setInstr] = useStateS('');
   const [notes, setNotes] = useStateS('');
+  React.useEffect(() => {
+    const i = sections['chat.instructions'];
+    const n = sections['chat.notes'];
+    if (i && i.value != null) setInstr(String(i.value));
+    if (n && n.value != null) setNotes(String(n.value));
+  }, [sections]);
   return (
     <Pane title="Chat" jp="対話">
       <Field label="Custom Instructions" hint="Personalize your interactions with SHOGUN by providing your own instructions">
@@ -470,7 +496,12 @@ function PaneShortcuts() {
 
 function PaneSubscription() {
   const { run } = useRuntimeActions();
+  const { sections } = React.useContext(SettingsHydrationContext);
   const [billingCycle, setBillingCycle] = useStateS('annual');
+  React.useEffect(() => {
+    const s = sections.subscription;
+    if (s && s.billingCycle != null) setBillingCycle(String(s.billingCycle));
+  }, [sections]);
   return (
     <Pane title="Subscription" jp="契約">
       <div style={{display:'grid', gridTemplateColumns:'1fr 1fr', gap:14}}>
@@ -479,8 +510,8 @@ function PaneSubscription() {
             <div style={{fontSize:16, fontWeight:500}}>Plus</div>
             <span className="spacer"/>
             <div style={{display:'flex', border:'1px solid var(--border)', borderRadius:'var(--radius-sm)', overflow:'hidden'}}>
-              <button className="btn btn-sm btn-ghost" style={{borderRadius:0, background:billingCycle==='monthly'?'var(--surface-2)':'transparent', color:billingCycle==='monthly'?'var(--text)':'var(--text-mute)'}} onClick={()=>setBillingCycle('monthly')}>Monthly</button>
-              <button className="btn btn-sm" style={{borderRadius:0, background:billingCycle==='annual'?'var(--surface-2)':'transparent', color:billingCycle==='annual'?'var(--text)':'var(--text-mute)'}} onClick={()=>setBillingCycle('annual')}>Annual</button>
+              <button className="btn btn-sm btn-ghost" style={{borderRadius:0, background:billingCycle==='monthly'?'var(--surface-2)':'transparent', color:billingCycle==='monthly'?'var(--text)':'var(--text-mute)'}} onClick={()=>{ setBillingCycle('monthly'); run('settings.save', { section:'subscription', billingCycle:'monthly' }, { silentError:true }); }}>Monthly</button>
+              <button className="btn btn-sm" style={{borderRadius:0, background:billingCycle==='annual'?'var(--surface-2)':'transparent', color:billingCycle==='annual'?'var(--text)':'var(--text-mute)'}} onClick={()=>{ setBillingCycle('annual'); run('settings.save', { section:'subscription', billingCycle:'annual' }, { silentError:true }); }}>Annual</button>
             </div>
           </div>
           <div style={{fontSize:36, fontWeight:600, marginTop:16, letterSpacing:'-0.02em'}}>
@@ -576,12 +607,29 @@ const PANES = {
 function SettingsModal({pane, setPane, close}) {
   const resolved = PANE_ALIAS[pane] || pane;
   const PaneComp = PANES[resolved] || PANES.general;
+  const [hydratedSections, setHydratedSections] = useStateS({});
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      if (!window.SHOGUN_RUNTIME || !window.SHOGUN_RUNTIME.executeAction) {
+        setHydratedSections({});
+        return;
+      }
+      const res = await window.SHOGUN_RUNTIME.executeAction('settings.load', {}, { silentError: true });
+      if (cancelled) return;
+      const inner = res && res.data;
+      const sec = inner && inner.settings && inner.settings.sections;
+      setHydratedSections(sec && typeof sec === 'object' ? sec : {});
+    })();
+    return () => { cancelled = true; };
+  }, []);
   React.useEffect(() => {
     const onKey = (e) => { if (e.key === 'Escape') close(); };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
   return (
+    <SettingsHydrationContext.Provider value={{ sections: hydratedSections }}>
     <>
       <div className="s-backdrop" onClick={close}/>
       <div className="s-modal">
@@ -784,6 +832,7 @@ function SettingsModal({pane, setPane, close}) {
         .s-tier-btn:hover { border-color:var(--gold-dim); }
       `}</style>
     </>
+    </SettingsHydrationContext.Provider>
   );
 }
 
