@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
 import { Icon, Kamon } from "./components/Icon";
 import { SpotlightSearch } from "./components/SpotlightSearch";
+import { SettingsModal } from "./components/SettingsModal";
 import { api } from "./lib/tauri";
 import { LangContext, type Lang } from "./lib/i18n";
 
@@ -24,9 +25,9 @@ const ROUTES: Record<string, string> = {
   memory: "/timeline",
   chat: "/chat",
   agents: "/pipes",
-  work: "/search",
-  meetings: "/timeline",
-  capture: "/settings",
+  work: "/work",
+  meetings: "/meetings",
+  capture: "/capture",
   integrations: "/integrations",
   settings: "/settings",
 };
@@ -39,6 +40,7 @@ export default function App() {
   const [systemOpen, setSystemOpen] = useState(false);
   const [userOpen, setUserOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState<string | null>(null);
   const [favorited, setFavorited] = useState(false);
   const [captureActive, setCaptureActive] = useState(true);
   const [stats, setStats] = useState<{ total_pages?: number }>({});
@@ -311,7 +313,7 @@ export default function App() {
                 <div style={{ fontSize: 12, color: "var(--text-dim)" }}>kazu@shogun.local</div>
               </div>
               <div className="user-float-section">
-                <div className="user-float-row" onClick={() => { navigate("/settings"); setUserOpen(false); }}>
+                <div className="user-float-row" onClick={() => { setSettingsOpen("general"); setUserOpen(false); }}>
                   <Icon name="settings" size={13} /><span className="en-only">Settings</span><span className="jp">設定</span>
                   <span style={{ flex: 1 }} />
                   <span className="kbd-mini">⌘,</span>
@@ -348,6 +350,10 @@ export default function App() {
               </div>
             </div>
           </>
+        )}
+
+        {settingsOpen && (
+          <SettingsModal pane={settingsOpen} setPane={setSettingsOpen as (p: string) => void} close={() => setSettingsOpen(null)} />
         )}
 
         <style>{`

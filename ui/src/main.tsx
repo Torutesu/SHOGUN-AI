@@ -12,6 +12,9 @@ import { Timeline } from "./pages/Timeline";
 import { Pipes } from "./pages/Pipes";
 import { Integrations } from "./pages/Integrations";
 import { Settings } from "./pages/Settings";
+import { Work } from "./pages/Work";
+import { Capture } from "./pages/Capture";
+import { Meetings } from "./pages/Meetings";
 import "./index.css";
 
 ReactDOM.createRoot(document.getElementById("root")!).render(
@@ -25,6 +28,9 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
           <Route path="timeline" element={<Timeline />} />
           <Route path="pipes" element={<Pipes />} />
           <Route path="integrations" element={<Integrations />} />
+          <Route path="work" element={<Work />} />
+          <Route path="capture" element={<Capture />} />
+          <Route path="meetings" element={<Meetings />} />
           <Route path="page/:slug" element={<PageView />} />
           <Route path="page/:slug/edit" element={<PageEdit />} />
           <Route path="settings" element={<Settings />} />

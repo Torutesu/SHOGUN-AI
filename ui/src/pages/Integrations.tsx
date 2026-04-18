@@ -1,96 +1,55 @@
-import { useEffect, useState } from "react";
-import { api } from "../lib/tauri";
 import { Icon } from "../components/Icon";
 import { useLang } from "../lib/i18n";
 
+const tools = [
+  { name: "Gmail", cat: "Mail", jp: "メール", connected: true, ops: ["read", "draft", "send"] },
+  { name: "Google Calendar", cat: "Calendar", jp: "予定", connected: true, ops: ["read", "create"] },
+  { name: "Slack", cat: "Chat", jp: "会話", connected: true, ops: ["read", "post"] },
+  { name: "Notion", cat: "Docs", jp: "文書", connected: true, ops: ["read", "write"] },
+  { name: "Linear", cat: "Tasks", jp: "課題", connected: true, ops: ["read", "create"] },
+  { name: "GitHub", cat: "Code", jp: "コード", connected: true, ops: ["read", "comment"] },
+  { name: "Arc Browser", cat: "Web", jp: "閲覧", connected: true, ops: ["capture"] },
+  { name: "Claude", cat: "LLM", jp: "対話", connected: true, ops: ["chat"] },
+  { name: "Figma", cat: "Design", jp: "意匠", connected: false, ops: ["read"] },
+  { name: "Raycast", cat: "Launcher", jp: "起動", connected: false, ops: ["trigger"] },
+  { name: "Obsidian", cat: "Notes", jp: "手記", connected: false, ops: ["read", "write"] },
+  { name: "Zapier MCP", cat: "Bridge", jp: "橋梁", connected: false, ops: ["any"] },
+];
+
 export function Integrations() {
   const lang = useLang();
-  const [tokens, setTokens] = useState<Record<string, string>>({});
-  const [syncing, setSyncing] = useState<string | null>(null);
-  const [results, setResults] = useState<Record<string, string>>({});
-
-  useEffect(() => {
-    api.loadSettings().then((s) => {
-      setTokens({ openai: s.openai_api_key ?? "" });
-    }).catch(() => {});
-  }, []);
-
-  const syncService = async (serviceId: string) => {
-    const token = tokens[serviceId] ?? "";
-    if (!token) return;
-    setSyncing(serviceId);
-    setResults((r) => ({ ...r, [serviceId]: "" }));
-    try {
-      let res: unknown;
-      switch (serviceId) {
-        case "slack":  res = await api.ingestSlack(token, "general"); break;
-        case "github": res = await api.ingestGitHub(token, "torutesu", "shogun-ai"); break;
-        case "notion": res = await api.ingestNotion(token); break;
-        case "linear": res = await api.ingestLinear(token); break;
-        case "gmail":  res = await api.ingestGmail({ client_id: "", client_secret: "", access_token: token, refresh_token: "" }); break;
-        case "gcal":   res = await api.ingestCalendar(token); break;
-      }
-      setResults((r) => ({ ...r, [serviceId]: "✓ " + (JSON.stringify(res).slice(0, 120)) }));
-    } catch (err) {
-      setResults((r) => ({ ...r, [serviceId]: `✗ ${err}` }));
-    }
-    setSyncing(null);
-  };
-
-  const services = [
-    { id: "slack",  name: "Slack",   icon: "slack",    connected: false },
-    { id: "github", name: "GitHub",  icon: "terminal", connected: false },
-    { id: "notion", name: "Notion",  icon: "note",     connected: false },
-    { id: "linear", name: "Linear",  icon: "zap",      connected: false },
-    { id: "gmail",  name: "Gmail",   icon: "mail",     connected: false },
-    { id: "gcal",   name: "Calendar",icon: "calendar", connected: false },
-  ];
-
   return (
-    <div className="content-inner" style={{ maxWidth: 820, margin: "0 auto", padding: "32px 40px 64px" }}>
+    <div className="content-inner">
       <div className="page-head">
         <div>
-          <div className="t-mono" style={{ marginBottom: 6 }}>INTEGRATIONS · 接続</div>
-          <h1><span className="en-only">Integrations</span><span className="jp">接続</span></h1>
-          <div style={{ color: "var(--text-mute)", fontSize: 14, marginTop: 6 }}>
-            {lang === "ja" ? "外部サービスからデータを取り込む" : "Import data from external services"}
-          </div>
+          <div className="t-mono" style={{ marginBottom: 8 }}>CONNECTION LAYER</div>
+          <h1>Integrations <span className="jp">接続</span></h1>
+          <div className="sub">{lang === "ja" ? "20のMCPツール。エージェントが外部と連携するために使用。" : "20 MCP tools. Your agents use these to act on the outside world."}</div>
+        </div>
+        <div className="row">
+          <div style={{ fontSize: 13, color: "var(--text-mute)" }}><span className="gold" style={{ fontSize: 20, fontWeight: 600 }}>8</span> / 20 connected</div>
+          <button className="btn btn-primary"><Icon name="plus" size={14} />Add tool</button>
         </div>
       </div>
 
-      <div className="col" style={{ gap: 12 }}>
-        {services.map((svc) => (
-          <div key={svc.id} className="card">
-            <div className="row" style={{ gap: 14 }}>
-              <div style={{ width: 40, height: 40, borderRadius: "var(--radius-md)", background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
-                <Icon name={svc.icon} size={18} className="gold" />
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 14 }}>
+        {tools.map((t, i) => (
+          <div key={i} className="card card-hover" style={{ padding: 20, opacity: t.connected ? 1 : 0.6 }}>
+            <div className="row" style={{ marginBottom: 14, gap: 12 }}>
+              <div style={{ width: 40, height: 40, border: "1px solid var(--border)", borderRadius: "var(--radius-md)", background: "var(--surface-2)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                <Icon name="plug" size={16} className={t.connected ? "gold" : "dim"} />
               </div>
               <div style={{ flex: 1 }}>
-                <div className="row" style={{ gap: 8, marginBottom: 4 }}>
-                  <span style={{ fontSize: 14, fontWeight: 500 }}>{svc.name}</span>
-                  {svc.connected && <span className="label label-success">CONNECTED</span>}
+                <div style={{ fontSize: 14, fontWeight: 500 }}>{t.name}</div>
+                <div className="row" style={{ gap: 6, marginTop: 2 }}>
+                  <span className="t-mono" style={{ fontSize: 10 }}>{t.cat}</span>
+                  <span className="jp dim" style={{ fontSize: 10 }}>{t.jp}</span>
                 </div>
-                {results[svc.id] && (
-                  <div style={{ fontSize: 11, color: results[svc.id].startsWith("✓") ? "var(--success)" : "var(--danger)", fontFamily: "var(--font-mono)" }}>
-                    {results[svc.id]}
-                  </div>
-                )}
               </div>
-              <input
-                className="input"
-                type="password"
-                placeholder={`${svc.name} token`}
-                style={{ width: 200 }}
-                value={tokens[svc.id] ?? ""}
-                onChange={(e) => setTokens({ ...tokens, [svc.id]: e.target.value })}
-              />
-              <button
-                onClick={() => syncService(svc.id)}
-                disabled={syncing === svc.id || !tokens[svc.id]}
-                className="btn btn-sm btn-primary"
-              >
-                {syncing === svc.id ? "Syncing..." : "Sync"}
-              </button>
+              <div className={"switch " + (t.connected ? "on" : "")} style={{ transform: "scale(0.85)" }} />
+            </div>
+            <div className="row" style={{ gap: 4, flexWrap: "wrap" }}>
+              {t.ops.map((o) => <span key={o} className="label" style={{ fontSize: 10, height: 20 }}>{o}</span>)}
             </div>
           </div>
         ))}
