@@ -1,0 +1,136 @@
+/* SHOGUN Design Tokens — from design system */
+:root {
+  --bg:          #080808;
+  --surface:     #141414;
+  --surface-2:   #1C1C1C;
+  --border:      #2A2A2A;
+  --border-hi:   #3A3A3A;
+
+  --text:        #FFFFFF;
+  --text-mute:   #999999;
+  --text-dim:    #666666;
+
+  --gold:        #C8A96E;
+  --gold-hover:  #D4B57A;
+  --gold-dim:    #8A7550;
+
+  --success:     #6B9E78;
+  --warning:     #C8A96E;
+  --danger:      #A65D5D;
+
+  --font-en:   "Helvetica Neue", "Inter", system-ui, sans-serif;
+  --font-jp:   "Noto Sans JP", "Hiragino Sans", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", monospace;
+
+  --space-1:  4px;
+  --space-2:  8px;
+  --space-3:  12px;
+  --space-4:  16px;
+  --space-6:  24px;
+  --space-8:  32px;
+  --space-12: 48px;
+  --space-16: 64px;
+
+  --radius-sm: 4px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  --shadow-sm: 0 1px 2px rgba(0,0,0,0.4);
+  --shadow-md: 0 4px 12px rgba(0,0,0,0.5);
+  --shadow-lg: 0 12px 32px rgba(0,0,0,0.6);
+
+  --ease-out:   cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-inout: cubic-bezier(0.65, 0, 0.35, 1);
+
+  --dur-fast: 120ms;
+  --dur-base: 200ms;
+  --dur-slow: 400ms;
+}
+
+* { box-sizing: border-box; }
+html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--font-en); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
+:lang(ja), .jp { font-family:var(--font-jp); font-weight:300; white-space:nowrap; }
+.mono { font-family:var(--font-mono); letter-spacing:0.02em; }
+
+button { font-family:inherit; cursor:pointer; background:none; border:0; color:inherit; padding:0; }
+input, textarea { font-family:inherit; color:inherit; }
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:8px; height:40px; padding:0 20px; border-radius:var(--radius-md); font-weight:500; font-size:14px; transition:all var(--dur-base) var(--ease-out); border:1px solid transparent; white-space:nowrap; }
+.btn-sm { height:32px; padding:0 14px; font-size:13px; }
+.btn-lg { height:48px; padding:0 24px; font-size:15px; }
+.btn-primary { background:var(--text); color:var(--bg); border-color:var(--text); }
+.btn-primary:hover { background:var(--gold); border-color:var(--gold); }
+.btn-secondary { background:transparent; color:var(--text); border-color:var(--border); }
+.btn-secondary:hover { border-color:var(--gold); color:var(--gold); }
+.btn-ghost { color:var(--text-mute); }
+.btn-ghost:hover { color:var(--text); }
+.btn:focus-visible { outline:2px solid var(--gold); outline-offset:2px; }
+
+/* Card */
+.card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-lg); padding:var(--space-6); }
+.card-hover:hover { border-color:var(--border-hi); }
+.card-interactive { cursor:pointer; transition:border-color var(--dur-base) var(--ease-out); }
+.card-interactive:hover { border-color:var(--gold); }
+
+/* Input */
+.input { background:var(--bg); color:var(--text); border:1px solid var(--border); border-radius:var(--radius-md); padding:0 12px; height:40px; font-size:14px; width:100%; transition:border-color var(--dur-base) var(--ease-out); }
+.input::placeholder { color:var(--text-dim); }
+.input:hover { border-color:var(--border-hi); }
+.input:focus { border-color:var(--gold); outline:none; }
+
+/* Label */
+.label { display:inline-flex; align-items:center; height:22px; padding:0 8px; background:var(--surface-2); color:var(--text-mute); border:1px solid var(--border); border-radius:var(--radius-sm); font-size:12px; font-family:var(--font-mono); letter-spacing:0.02em; }
+.label-gold { color:var(--gold); border-color:var(--gold-dim); }
+.label-success { color:var(--success); border-color:color-mix(in srgb, var(--success) 50%, transparent); }
+.label-danger { color:var(--danger); border-color:color-mix(in srgb, var(--danger) 50%, transparent); }
+
+/* Type scale */
+.t-hero { font-size:72px; line-height:1.1; font-weight:600; letter-spacing:-0.02em; }
+.t-h1 { font-size:48px; line-height:1.2; font-weight:600; letter-spacing:-0.01em; }
+.t-h2 { font-size:32px; line-height:1.2; font-weight:600; letter-spacing:-0.01em; }
+.t-h3 { font-size:24px; line-height:1.3; font-weight:500; }
+.t-body { font-size:16px; line-height:1.6; }
+.t-sm { font-size:14px; line-height:1.5; }
+.t-cap { font-size:12px; line-height:1.4; color:var(--text-mute); }
+.t-mono { font-family:var(--font-mono); font-size:12px; letter-spacing:0.08em; text-transform:uppercase; color:var(--text-dim); }
+
+.muted { color:var(--text-mute); }
+.dim { color:var(--text-dim); }
+.gold { color:var(--gold); }
+
+/* Divider */
+.hr { height:1px; background:var(--border); border:0; width:100%; }
+.vr { width:1px; background:var(--border); align-self:stretch; }
+
+/* Scrollbar */
+::-webkit-scrollbar { width:10px; height:10px; }
+::-webkit-scrollbar-track { background:transparent; }
+::-webkit-scrollbar-thumb { background:var(--border); border-radius:5px; }
+::-webkit-scrollbar-thumb:hover { background:var(--border-hi); }
+
+/* Dot grid bg (optional) */
+.dot-grid { background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; }
+
+/* Utilities */
+.row { display:flex; align-items:center; gap:12px; }
+.col { display:flex; flex-direction:column; gap:12px; }
+.stack-2 { display:flex; flex-direction:column; gap:8px; }
+.stack-4 { display:flex; flex-direction:column; gap:16px; }
+.stack-6 { display:flex; flex-direction:column; gap:24px; }
+.flex-1 { flex:1; min-width:0; min-height:0; }
+.spacer { flex:1; }
+
+/* Kamon / seal — canonical logo */
+.kamon { width:28px; height:28px; border:1.5px solid currentColor; border-radius:50%; position:relative; display:inline-flex; align-items:center; justify-content:center; color:var(--text); flex-shrink:0; }
+.kamon::before { content:""; position:absolute; inset:4px; border:1px solid currentColor; border-radius:50%; }
+.kamon::after { content:""; position:absolute; width:1px; height:14px; background:currentColor; transform:rotate(45deg); }
+.kamon > span { position:absolute; font-family:var(--font-jp); font-size:10px; font-weight:500; display:none; }
+
+/* Nav pill */
+.navpill { display:inline-flex; align-items:center; gap:8px; height:36px; padding:0 14px; border-radius:var(--radius-md); color:var(--text-mute); font-size:13px; transition:all var(--dur-base) var(--ease-out); cursor:pointer; border:1px solid transparent; }
+.navpill:hover { color:var(--text); }
+.navpill.active { color:var(--text); background:var(--surface-2); border-color:var(--border); }
+.navpill .jp { font-size:11px; color:var(--text-dim); }
+.navpill.active .jp { color:var(--gold); }
