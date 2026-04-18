@@ -34,6 +34,7 @@ def extract_runtime_keys(content: str) -> set[str]:
     keys = set(re.findall(r"runRuntimeAction[A-Za-z]*\(\s*'([^']+)'", content))
     keys.update(re.findall(r"executeAction\(\s*'([^']+)'", content))
     keys.update(re.findall(r"requestWriteAction\(\s*'([^']+)'", content))
+    keys.update(re.findall(r"requestWriteAction[A-Za-z]*\(\s*'([^']+)'", content))
     return keys
 
 

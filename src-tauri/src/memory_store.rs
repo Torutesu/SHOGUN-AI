@@ -261,3 +261,49 @@ pub fn fetch(payload: &Value) -> Result<Value, String> {
     "stub": false,
   }))
 }
+
+/// Remove items by `id` or `ids` from the local index (WRITE).
+pub fn delete_items(payload: &Value) -> Result<Value, String> {
+  let mut id_list: Vec<String> = Vec::new();
+  if let Some(arr) = payload.get("ids").and_then(|x| x.as_array()) {
+    id_list.extend(
+      arr
+        .iter()
+        .filter_map(|v| v.as_str().map(String::from)),
+    );
+  }
+  if let Some(s) = payload.get("id").and_then(|x| x.as_str()) {
+    id_list.push(s.to_string());
+  }
+  id_list.sort();
+  id_list.dedup();
+
+  if id_list.is_empty() {
+    return Err("id or ids is required".to_string());
+  }
+
+  let id_set: std::collections::HashSet<&str> = id_list.iter().map(|s| s.as_str()).collect();
+
+  let mut doc = load_catalog()?;
+  let arr = doc
+    .get_mut("items")
+    .and_then(|i| i.as_array_mut())
+    .ok_or_else(|| "memory catalog missing items array".to_string())?;
+
+  let before = arr.len();
+  arr.retain(|it| {
+    it.get("id")
+      .and_then(|i| i.as_str())
+      .map(|id| !id_set.contains(id))
+      .unwrap_or(true)
+  });
+  let removed = before - arr.len();
+  save_catalog(&doc)?;
+
+  Ok(json!({
+    "removed": removed,
+    "requested": id_list,
+    "echo": payload,
+    "stub": false,
+  }))
+}

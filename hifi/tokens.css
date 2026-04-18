@@ -48,6 +48,27 @@
   --dur-slow: 400ms;
 }
 
+/* Persisted appearance (Settings → Appearance); resolved mode on <html> */
+html[data-color-mode="light"] {
+  --bg:          #f4f1ea;
+  --surface:     #ffffff;
+  --surface-2:   #ebe6de;
+  --border:      #d4cfc4;
+  --border-hi:   #c4bdb0;
+  --text:        #1a1714;
+  --text-mute:   #5c564c;
+  --text-dim:    #8a8478;
+  --gold:        #8a6b3a;
+  --gold-hover:  #7a5f32;
+  --gold-dim:    #a08b5c;
+  --success:     #4a7a58;
+  --warning:     #8a6b3a;
+  --danger:      #8a4545;
+}
+html[data-font-size="compact"] { font-size: 13px; }
+html[data-font-size="comfortable"] { font-size: 15px; }
+html[data-font-size="normal"] { font-size: 14px; }
+
 * { box-sizing: border-box; }
 html, body { margin:0; padding:0; background:var(--bg); color:var(--text); font-family:var(--font-en); font-size:14px; line-height:1.5; -webkit-font-smoothing:antialiased; }
 :lang(ja), .jp { font-family:var(--font-jp); font-weight:300; white-space:nowrap; }
@@ -112,6 +133,7 @@ input, textarea { font-family:inherit; color:inherit; }
 
 /* Dot grid bg (optional) */
 .dot-grid { background-image: radial-gradient(circle, rgba(255,255,255,0.03) 1px, transparent 1px); background-size: 24px 24px; }
+html[data-color-mode="light"] .dot-grid { background-image: radial-gradient(circle, rgba(0,0,0,0.06) 1px, transparent 1px); }
 
 /* Utilities */
 .row { display:flex; align-items:center; gap:12px; }

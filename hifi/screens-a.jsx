@@ -6,6 +6,11 @@ function runRuntimeActionA(key, payload, options) {
   return window.SHOGUN_RUNTIME.executeAction(key, payload || {}, options || {});
 }
 
+function requestWriteActionA(actionKey, payload, title, description) {
+  if (!window.SHOGUN_RUNTIME || !window.SHOGUN_RUNTIME.requestWriteAction) return;
+  window.SHOGUN_RUNTIME.requestWriteAction(actionKey, payload, title, description);
+}
+
 const MEMORY_DEMO_EVENTS = [
   {t:'07:12', h:7.2,  src:'agent', title:'Morning brief assembled', tag:'auto'},
   {t:'07:58', h:7.97, src:'mail',  title:'Inbox open · 24 unread'},
@@ -118,6 +123,14 @@ function ScreenMemory() {
       mergeIndexHitsIntoRiver(res, setEvents, setScrubIdx);
     })();
     return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    const onIndexChanged = async () => {
+      const r = await runRuntimeActionA('memory.search', { query: '', limit: 40 }, { silentError: true });
+      mergeIndexHitsIntoRiver(r, setEvents, setScrubIdx);
+    };
+    window.addEventListener('shogun-memory-index-changed', onIndexChanged);
+    return () => window.removeEventListener('shogun-memory-index-changed', onIndexChanged);
   }, []);
   useEffect(() => {
     setScrubIdx((i) => {
@@ -375,6 +388,17 @@ function ScreenMemory() {
               <div className="row" style={{gap:8, paddingTop:10, borderTop:'1px solid var(--border)', marginTop:10}}>
                 <button className="btn btn-sm btn-secondary" onClick={()=>runRuntimeActionA('memory.search', { query:scrubbed.title, limit:10 }, { successMessage:'Opened in Chat context' })}><Icon name="chat" size={12}/>Open in Chat</button>
                 <button className="btn btn-sm btn-secondary" onClick={()=>runRuntimeActionA('memory.search', { query:`source:${scrubbed.src} ${scrubbed.title}`, limit:10 }, { successMessage:'Source opened' })}><Icon name="file" size={12}/>Open source</button>
+                {scrubbed.memoryId && (
+                  <button
+                    className="btn btn-sm btn-ghost"
+                    onClick={() => requestWriteActionA(
+                      'memory.delete',
+                      { id: scrubbed.memoryId },
+                      'Remove from memory index',
+                      'Deletes this entry from the local memory index file (memory_items.json). Demo events stay in the river until refresh.',
+                    )}
+                  ><Icon name="x" size={12}/>Remove from index</button>
+                )}
                 <span className="spacer"/>
                 <button className="btn btn-sm btn-ghost" onClick={()=>runRuntimeActionA('settings.save', { section:'memory', action:'open_more_menu' }, { successMessage:'More actions opened' })}><Icon name="more" size={12}/></button>
               </div>

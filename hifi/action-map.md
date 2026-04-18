@@ -32,6 +32,7 @@ UIボタンと ActionRegistry / Runtime の対応表。
 - Memory filter button -> `memory.search`
 - Memory `Save test` -> `memory.ingest` then `memory.search` refresh
 - River actions (`Open in Chat`, `Open source`) -> `memory.search`
+- River `Remove from index` (indexed row only) -> `memory.delete` (WRITE confirm); app dispatches `shogun-memory-index-changed` on success for list refresh
 - River more menu -> `settings.save(section=memory)`
 
 ## screens-b.jsx
@@ -75,6 +76,7 @@ UIボタンと ActionRegistry / Runtime の対応表。
 - `account.delete`
 - `memory.search`
 - `memory.ingest`
+- `memory.delete`
 - `brief.get`
 - `stats.get`
 - `draft.create`

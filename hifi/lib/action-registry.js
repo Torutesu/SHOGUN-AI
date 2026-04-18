@@ -39,6 +39,7 @@
     register("account.delete", () => api.accountDeleteSelf({}));
     register("memory.search", (payload) => api.memorySearch(payload));
     register("memory.ingest", (payload) => api.memoryIngest(payload));
+    register("memory.delete", (payload) => api.memoryDelete(payload));
     register("brief.get", (payload) => api.briefGet(payload));
     register("stats.get", (payload) => api.statsGet(payload));
     register("draft.create", (payload) => api.draftCreate(payload));

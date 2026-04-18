@@ -20,6 +20,7 @@ pub fn run() {
       commands::shogun_memory_search,
       commands::shogun_memory_fetch,
       commands::shogun_memory_ingest,
+      commands::shogun_memory_delete,
       commands::shogun_entity_query,
       commands::shogun_brief_get,
       commands::shogun_draft,

@@ -56,6 +56,7 @@ function ensureRuntimeDeps() {
         accountDeleteSelf: (input) => client.invoke('app_delete_account', input),
         memorySearch: (input) => client.invoke('shogun_memory_search', input),
         memoryIngest: (input) => client.invoke('shogun_memory_ingest', input),
+        memoryDelete: (input) => client.invoke('shogun_memory_delete', input),
         briefGet: (input) => client.invoke('shogun_brief_get', input),
         statsGet: (input) => client.invoke('shogun_stats', input),
         draftCreate: (input) => client.invoke('shogun_draft', input),
@@ -82,6 +83,7 @@ function ensureRuntimeDeps() {
           'account.delete': api.accountDeleteSelf,
           'memory.search': api.memorySearch,
           'memory.ingest': api.memoryIngest,
+          'memory.delete': api.memoryDelete,
           'brief.get': api.briefGet,
           'stats.get': api.statsGet,
           'draft.create': api.draftCreate,
@@ -97,6 +99,29 @@ function ensureRuntimeDeps() {
         };
       },
     };
+  }
+}
+
+/** Apply `sections.appearance` from settings JSON to `<html>` (color mode, font size). */
+function applySavedAppearance(sections) {
+  if (!sections || typeof sections !== 'object') return;
+  const a = sections.appearance;
+  if (!a || typeof a !== 'object') return;
+  const pref = a.colorMode != null ? String(a.colorMode) : '';
+  if (pref === 'light' || pref === 'dark' || pref === 'auto') {
+    document.documentElement.setAttribute('data-appearance', pref);
+    const effective = pref === 'auto'
+      ? (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light')
+      : pref;
+    document.documentElement.setAttribute('data-color-mode', effective);
+  }
+  if (a.fontSize != null) {
+    const fs = String(a.fontSize).toLowerCase();
+    if (fs === 'normal' || fs === 'compact' || fs === 'comfortable') {
+      document.documentElement.setAttribute('data-font-size', fs);
+    }
+  } else {
+    document.documentElement.removeAttribute('data-font-size');
   }
 }
 
@@ -234,6 +259,26 @@ function App() {
     document.body.setAttribute('data-density', tweaks.accentDensity);
     document.body.setAttribute('data-gold', tweaks.goldIntensity);
   }, [tweaks]);
+
+  useEffect(() => {
+    const mq = window.matchMedia('(prefers-color-scheme: dark)');
+    const onScheme = () => {
+      if (document.documentElement.getAttribute('data-appearance') !== 'auto') return;
+      document.documentElement.setAttribute('data-color-mode', mq.matches ? 'dark' : 'light');
+    };
+    mq.addEventListener('change', onScheme);
+    return () => mq.removeEventListener('change', onScheme);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const r = await executeAction('settings.load', {}, { silentError: true });
+      if (cancelled || !r.ok || !r.data?.settings?.sections) return;
+      applySavedAppearance(r.data.settings.sections);
+    })();
+    return () => { cancelled = true; };
+  }, []);
 
   const cycleLang = () => {
     const order = ['en','jp','bi'];
@@ -559,7 +604,13 @@ function App() {
         <SettingsModal
           pane={settingsOpen}
           setPane={setSettingsOpen}
-          close={()=>setSettingsOpen(null)}
+          close={() => {
+            setSettingsOpen(null);
+            (async () => {
+              const r = await executeAction('settings.load', {}, { silentError: true });
+              if (r.ok && r.data?.settings?.sections) applySavedAppearance(r.data.settings.sections);
+            })();
+          }}
         />
       )}
 
@@ -573,10 +624,15 @@ function App() {
         onCancel={() => setWriteConfirm({ open:false, actionKey:null, payload:null, title:null, description:null })}
         onConfirm={async () => {
           if (!writeConfirm.actionKey) return;
+          const actionKey = writeConfirm.actionKey;
+          const payload = writeConfirm.payload;
           setWritePending(true);
-          await executeAction(writeConfirm.actionKey, writeConfirm.payload, { successMessage:'Action completed' });
+          const res = await executeAction(actionKey, payload, { successMessage:'Action completed' });
           setWritePending(false);
           setWriteConfirm({ open:false, actionKey:null, payload:null, title:null, description:null });
+          if (actionKey === 'memory.delete' && res && res.ok) {
+            window.dispatchEvent(new CustomEvent('shogun-memory-index-changed'));
+          }
         }}
       />
 
