@@ -4,9 +4,14 @@
   "scripts": {
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
-    "check:actions": "python3 hifi/scripts/check-actions.py"
+    "check:actions": "python3 hifi/scripts/check-actions.py",
+    "build:web-dist": "node scripts/sync-web-dist.mjs",
+    "tauri": "tauri",
+    "dev:desktop": "tauri dev",
+    "build:desktop": "tauri build"
   },
   "devDependencies": {
-    "@playwright/test": "^1.49.1"
+    "@playwright/test": "^1.49.1",
+    "@tauri-apps/cli": "^2"
   }
 }
