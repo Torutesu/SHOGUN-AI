@@ -1,6 +1,10 @@
 {
   "name": "shogun-ai-hifi",
   "private": true,
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/Torutesu/ShogunAI3.git"
+  },
   "scripts": {
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",

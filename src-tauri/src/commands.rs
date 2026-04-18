@@ -1,6 +1,7 @@
 //! IPC handlers aligned with `hifi/lib/shogun-api.js` invoke names.
 //! Stubs return JSON the Hi-Fi UI can consume; replace with PGLite / real pipelines later.
 
+use crate::settings_store;
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -88,16 +89,23 @@ pub fn app_create_share_link(payload: Value) -> Result<Value, String> {
 
 #[tauri::command]
 pub fn app_settings_load(payload: Value) -> Result<Value, String> {
+  let doc = settings_store::load()?;
   Ok(json!({
-    "settings": {},
+    "settings": doc,
     "echo": payload,
-    "stub": true,
+    "stub": false,
   }))
 }
 
 #[tauri::command]
 pub fn app_settings_save(payload: Value) -> Result<Value, String> {
-  Ok(json!({ "saved": true, "echo": payload, "stub": true }))
+  let doc = settings_store::save_patch(&payload)?;
+  Ok(json!({
+    "saved": true,
+    "settings": doc,
+    "echo": payload,
+    "stub": false,
+  }))
 }
 
 #[tauri::command]
