@@ -17,6 +17,7 @@ UIボタンと ActionRegistry / Runtime の対応表。
 
 ## settings-modal.jsx
 
+- Appearance changes call `settings.save(section=appearance)`; on success the modal dispatches `shogun-appearance-changed` so the shell updates `data-color-mode` / `data-font-size` without closing.
 - General `Email edit` -> `settings.save(section=general)`
 - Privacy app toggle -> `settings.save(section=privacy)`
 - Data deletion buttons -> `data.delete_range` / `data.delete_all` / `account.delete` (WRITE confirm)

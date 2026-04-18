@@ -69,6 +69,24 @@ test.describe("SHOGUN Hi-Fi UI", () => {
     await expect(page.locator(".s-modal")).toHaveCount(0);
   });
 
+  test("Appearance: choosing Light updates html data-color-mode (live)", async ({ page }) => {
+    await openHiFi(page);
+    await openSettingsModal(page);
+
+    await page.locator(".s-sidebar").getByText("Appearance", { exact: true }).click();
+    await expect(page.locator(".s-pane-head")).toContainText("Appearance");
+
+    await page.locator(".s-color-card").filter({ hasText: "Light" }).click();
+
+    const mode = await page.evaluate(() => document.documentElement.getAttribute("data-color-mode"));
+    const appearance = await page.evaluate(() => document.documentElement.getAttribute("data-appearance"));
+    expect(appearance).toBe("light");
+    expect(mode).toBe("light");
+
+    await page.locator(".s-close").click();
+    await expect(page.locator(".s-modal")).toHaveCount(0);
+  });
+
   test("Hummingbird WRITE confirm opens and Cancel closes", async ({ page }) => {
     await openHiFi(page);
 

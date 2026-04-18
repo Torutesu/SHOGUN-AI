@@ -280,6 +280,16 @@ function App() {
     return () => { cancelled = true; };
   }, []);
 
+  useEffect(() => {
+    const onAppearance = (e) => {
+      const a = e.detail && e.detail.appearance;
+      if (!a || typeof a !== 'object') return;
+      applySavedAppearance({ appearance: a });
+    };
+    window.addEventListener('shogun-appearance-changed', onAppearance);
+    return () => window.removeEventListener('shogun-appearance-changed', onAppearance);
+  }, []);
+
   const cycleLang = () => {
     const order = ['en','jp','bi'];
     const next = order[(order.indexOf(tweaks.language)+1) % order.length];

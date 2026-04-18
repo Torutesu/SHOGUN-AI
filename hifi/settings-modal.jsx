@@ -53,6 +53,21 @@ function Field({label, children, hint}) {
   );
 }
 
+/** After a successful appearance save, live-apply tokens in `app.jsx` without closing the modal. */
+function scheduleAppearanceLive(run, appearance) {
+  void run(
+    'settings.save',
+    { section: 'appearance', ...appearance },
+    { silentError: true },
+  ).then((res) => {
+    if (res && res.ok) {
+      window.dispatchEvent(
+        new CustomEvent('shogun-appearance-changed', { detail: { appearance } }),
+      );
+    }
+  });
+}
+
 function useRuntimeActions() {
   const run = async (key, payload, options) => {
     if (!window.SHOGUN_RUNTIME || !window.SHOGUN_RUNTIME.executeAction) return { ok:false };
@@ -193,7 +208,7 @@ function PaneAppearance() {
       <div className="s-field-label" style={{marginBottom:10}}>Color Mode</div>
       <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24}}>
         {[['light','Light'],['dark','Dark'],['auto','Match System']].map(([k,l])=>(
-          <div key={k} onClick={()=>{ setMode(k); run('settings.save', { section:'appearance', colorMode: k, extraWideChat: wide, codeBlockWrap: wrap, fontSize }, { silentError:true }); }} className={'s-color-card '+(mode===k?'active':'')}>
+          <div key={k} onClick={()=>{ setMode(k); scheduleAppearanceLive(run, { colorMode: k, extraWideChat: wide, codeBlockWrap: wrap, fontSize }); }} className={'s-color-card '+(mode===k?'active':'')}>
             <div className="s-color-preview" data-mode={k}>
               <div className="s-color-bar"><span/><span/><span/></div>
               <div className="s-color-title">What's on your mind?</div>
@@ -205,17 +220,17 @@ function PaneAppearance() {
       </div>
       <div className="s-card">
         <Row title="Extra Wide Chat" desc="Choose whether to make the chat extra wide">
-          <Toggle on={wide} onClick={()=>{ const next = !wide; setWide(next); run('settings.save', { section:'appearance', colorMode: mode, extraWideChat: next, codeBlockWrap: wrap, fontSize }, { silentError:true }); }}/>
+          <Toggle on={wide} onClick={()=>{ const next = !wide; setWide(next); scheduleAppearanceLive(run, { colorMode: mode, extraWideChat: next, codeBlockWrap: wrap, fontSize }); }}/>
         </Row>
         <Row title="Font Size" desc="Adjust the size of text across the app">
-          <select className="s-select" value={fontSize} onChange={(e)=>{ const v = e.target.value; setFontSize(v); run('settings.save', { section:'appearance', colorMode: mode, extraWideChat: wide, codeBlockWrap: wrap, fontSize: v }, { silentError:true }); }}>
+          <select className="s-select" value={fontSize} onChange={(e)=>{ const v = e.target.value; setFontSize(v); scheduleAppearanceLive(run, { colorMode: mode, extraWideChat: wide, codeBlockWrap: wrap, fontSize: v }); }}>
             <option value="Normal">Normal</option>
             <option value="Compact">Compact</option>
             <option value="Comfortable">Comfortable</option>
           </select>
         </Row>
         <Row title="Code Block Wrapping" desc="Enable or disable code block wrapping" last>
-          <Toggle on={wrap} onClick={()=>{ const next = !wrap; setWrap(next); run('settings.save', { section:'appearance', colorMode: mode, extraWideChat: wide, codeBlockWrap: next, fontSize }, { silentError:true }); }}/>
+          <Toggle on={wrap} onClick={()=>{ const next = !wrap; setWrap(next); scheduleAppearanceLive(run, { colorMode: mode, extraWideChat: wide, codeBlockWrap: next, fontSize }); }}/>
         </Row>
       </div>
     </Pane>
