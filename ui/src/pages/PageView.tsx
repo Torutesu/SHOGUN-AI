@@ -1,7 +1,15 @@
 import { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { api, type PageData } from "../lib/tauri";
+import { Icon } from "../components/Icon";
 import { useLang, t } from "../lib/i18n";
+
+const TYPE_ICON: Record<string, string> = {
+  person: "agents",
+  company: "work",
+  session: "calendar",
+  concept: "note",
+};
 
 export function PageView() {
   const { slug } = useParams<{ slug: string }>();
@@ -14,7 +22,8 @@ export function PageView() {
 
   useEffect(() => {
     if (!slug) return;
-    setLoading(true); setError(null);
+    setLoading(true);
+    setError(null);
     api.getPage(decodeURIComponent(slug))
       .then((p) => { setPage(p); setLoading(false); })
       .catch((e) => { setError(String(e)); setLoading(false); });
@@ -23,67 +32,124 @@ export function PageView() {
   const handleDelete = async () => {
     if (!confirm(t("page.delete.confirm", lang))) return;
     setDeleting(true);
-    try { await api.deletePage(page!.slug); navigate("/"); }
-    catch (e) { setError(String(e)); setDeleting(false); }
+    try {
+      await api.deletePage(page!.slug);
+      navigate("/");
+    } catch (e) {
+      setError(String(e));
+      setDeleting(false);
+    }
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
-  if (error) return <div className="p-6 text-center"><p className="text-sm text-status-error">{error}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">{t("page.back", lang)}</button></div>;
-  if (!page) return <div className="p-6 text-center"><p className="text-sm text-text-disabled">{t("page.notfound", lang)}</p><button onClick={() => navigate(-1)} className="btn-surface mt-3">{t("page.back", lang)}</button></div>;
+  if (loading) {
+    return (
+      <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}>
+        <div style={{ width: 20, height: 20, border: "2px solid var(--gold)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} />
+        <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+      </div>
+    );
+  }
 
-  const icon: Record<string, string> = { person: "👤", company: "🏢", session: "📅", concept: "💡" };
+  if (error) {
+    return (
+      <div className="content-inner" style={{ maxWidth: 680, margin: "0 auto", padding: "48px 40px" }}>
+        <div className="card" style={{ borderColor: "var(--danger)", color: "var(--danger)", marginBottom: 16 }}>{error}</div>
+        <button onClick={() => navigate(-1)} className="btn btn-sm btn-secondary">{t("page.back", lang)}</button>
+      </div>
+    );
+  }
+
+  if (!page) {
+    return (
+      <div className="content-inner" style={{ maxWidth: 680, margin: "0 auto", padding: "48px 40px", textAlign: "center" }}>
+        <div style={{ color: "var(--text-dim)", marginBottom: 16 }}>{t("page.notfound", lang)}</div>
+        <button onClick={() => navigate(-1)} className="btn btn-sm btn-secondary">{t("page.back", lang)}</button>
+      </div>
+    );
+  }
 
   return (
-    <div className="p-6 max-w-[680px] mx-auto space-y-5 animate-in">
-      <button onClick={() => navigate(-1)} className="text-xs text-text-disabled hover:text-text-secondary transition-colors">{t("page.back", lang)}</button>
+    <div className="content-inner" style={{ maxWidth: 820, margin: "0 auto", padding: "32px 40px 64px" }}>
+      <button
+        onClick={() => navigate(-1)}
+        className="btn btn-sm btn-ghost"
+        style={{ marginBottom: 20, padding: 0, height: "auto", gap: 6 }}
+      >
+        <Icon name="arrowLeft" size={12} /> {t("page.back", lang)}
+      </button>
 
-      {/* Header */}
-      <div className="flex items-start gap-3">
-        <span className="text-2xl">{icon[page.page_type] ?? "📄"}</span>
-        <div>
-          <h1 className="text-lg font-semibold">{page.title}</h1>
-          <div className="flex items-center gap-2 mt-1">
-            <span className="badge badge-gold text-[10px]">{page.page_type}</span>
-            <span className="text-[11px] text-text-disabled font-mono">{page.slug}</span>
+      <div className="page-head" style={{ marginBottom: 24 }}>
+        <div className="row" style={{ alignItems: "flex-start", gap: 14 }}>
+          <div style={{
+            width: 48, height: 48, borderRadius: "var(--radius-md)",
+            background: "var(--surface-2)", border: "1px solid var(--gold-dim)",
+            display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0,
+          }}>
+            <Icon name={TYPE_ICON[page.page_type] ?? "file"} size={22} className="gold" />
           </div>
+          <div>
+            <div className="t-mono" style={{ marginBottom: 6 }}>{page.page_type.toUpperCase()} · {page.slug}</div>
+            <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600, letterSpacing: "-0.01em" }}>{page.title}</h1>
+          </div>
+        </div>
+        <div className="row" style={{ gap: 8 }}>
+          <button
+            onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)}
+            className="btn btn-sm btn-secondary"
+          >
+            <Icon name="edit" size={13} /> {t("page.edit", lang)}
+          </button>
+          <button
+            onClick={handleDelete}
+            disabled={deleting}
+            className="btn btn-sm btn-secondary"
+            style={{ color: "var(--danger)", borderColor: "color-mix(in srgb, var(--danger) 50%, transparent)" }}
+          >
+            {deleting ? "..." : t("page.delete", lang)}
+          </button>
         </div>
       </div>
 
-      {/* Tags */}
       {page.tags.length > 0 && (
-        <div className="flex flex-wrap gap-1.5">
-          {page.tags.map((t) => <span key={t} className="text-[10px] px-2 py-0.5 rounded-full bg-gold/10 text-gold">{t}</span>)}
+        <div className="row" style={{ flexWrap: "wrap", gap: 6, marginBottom: 20 }}>
+          {page.tags.map((tag) => (
+            <span key={tag} className="label label-gold">
+              <Icon name="tag" size={10} />
+              <span style={{ marginLeft: 4 }}>{tag}</span>
+            </span>
+          ))}
         </div>
       )}
 
-      {/* Truth */}
-      <div className="card">
-        <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">{t("page.truth", lang)}</div>
-        <div className="text-sm leading-relaxed whitespace-pre-wrap">{page.compiled_truth}</div>
+      <div style={{ marginBottom: 24 }}>
+        <div className="t-mono" style={{ marginBottom: 12 }}>{t("page.truth", lang)} · 真</div>
+        <div className="card" style={{ padding: 24 }}>
+          <div style={{ fontSize: 14, lineHeight: 1.7, whiteSpace: "pre-wrap", color: "var(--text)" }}>
+            {page.compiled_truth}
+          </div>
+        </div>
       </div>
 
-      {/* Timeline */}
       {page.timeline && (
-        <div className="card">
-          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-2">{t("page.timeline", lang)}</div>
-          <div className="space-y-1.5">
-            {page.timeline.split("\n").filter(Boolean).map((line, i) => (
-              <div key={i} className="flex items-start gap-2 text-xs">
-                <span className="text-gold mt-0.5">•</span>
-                <span className="text-text-secondary">{line.replace(/^- /, "")}</span>
-              </div>
-            ))}
+        <div>
+          <div className="t-mono" style={{ marginBottom: 12 }}>{t("page.timeline", lang)} · 時</div>
+          <div className="card" style={{ padding: 20 }}>
+            <div className="col" style={{ gap: 10 }}>
+              {page.timeline.split("\n").filter(Boolean).map((line, i) => (
+                <div key={i} className="row" style={{ gap: 10, alignItems: "flex-start" }}>
+                  <div style={{
+                    width: 6, height: 6, borderRadius: "50%",
+                    background: "var(--gold)", marginTop: 7, flexShrink: 0,
+                  }} />
+                  <div style={{ fontSize: 13, lineHeight: 1.6, color: "var(--text-mute)" }}>
+                    {line.replace(/^- /, "")}
+                  </div>
+                </div>
+              ))}
+            </div>
           </div>
         </div>
       )}
-
-      {/* Actions */}
-      <div className="flex gap-2">
-        <button onClick={() => navigate(`/page/${encodeURIComponent(page.slug)}/edit`)} className="btn-gold">{t("page.edit", lang)}</button>
-        <button onClick={handleDelete} disabled={deleting} className="btn-surface text-status-error">
-          {deleting ? "..." : t("page.delete", lang)}
-        </button>
-      </div>
     </div>
   );
 }

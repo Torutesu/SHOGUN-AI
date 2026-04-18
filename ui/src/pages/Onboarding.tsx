@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api } from "../lib/tauri";
+import { Icon, Kamon } from "../components/Icon";
 import { useLang, t } from "../lib/i18n";
 
 type Step = 1 | 2 | 3 | 4 | 5;
@@ -13,18 +14,28 @@ export function Onboarding() {
   const prev = () => setStep((s) => Math.max(s - 1, 1) as Step);
 
   return (
-    <div className="min-h-screen bg-base flex items-center justify-center p-8">
-      <div className="w-full max-w-md">
-        <div key={step} className="animate-in">
+    <div style={{ minHeight: "100vh", background: "var(--bg)", display: "flex", alignItems: "center", justifyContent: "center", padding: 40 }}>
+      <div style={{ width: "100%", maxWidth: 480 }}>
+        <div className="card" style={{ padding: 40 }}>
           {step === 1 && <Welcome onNext={next} lang={lang} />}
           {step === 2 && <ApiKeys onNext={next} onBack={prev} lang={lang} />}
           {step === 3 && <FirstMemory onNext={next} onBack={prev} lang={lang} />}
           {step === 4 && <SearchDemo onNext={next} onBack={prev} lang={lang} />}
           {step === 5 && <Complete onFinish={() => navigate("/")} lang={lang} />}
         </div>
-        <div className="flex justify-center gap-1.5 mt-6">
-          {[1,2,3,4,5].map((s) => (
-            <div key={s} className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${s <= step ? "bg-gold" : "bg-border"}`} />
+
+        <div className="row" style={{ justifyContent: "center", gap: 6, marginTop: 20 }}>
+          {[1, 2, 3, 4, 5].map((s) => (
+            <div
+              key={s}
+              style={{
+                width: s === step ? 20 : 6,
+                height: 6,
+                borderRadius: 3,
+                background: s <= step ? "var(--gold)" : "var(--border)",
+                transition: "all var(--dur-base) var(--ease-out)",
+              }}
+            />
           ))}
         </div>
       </div>
@@ -32,24 +43,32 @@ export function Onboarding() {
   );
 }
 
-type P = { lang: "ja"|"en" };
+type P = { lang: "ja" | "en" };
 
 function Welcome({ onNext, lang }: { onNext: () => void } & P) {
   return (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto">
-        <span className="text-gold text-2xl font-semibold">将</span>
+    <div style={{ textAlign: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+        <Kamon size={56} color="var(--gold)" />
       </div>
-      <div>
-        <h1 className="text-xl font-semibold">SHOGUN</h1>
-        <p className="text-sm text-text-secondary mt-1">
-          {lang === "ja" ? "すべてを覚えるAI" : "The AI that remembers everything you do"}
-        </p>
-      </div>
-      <button onClick={onNext} className="btn-gold w-full">{t("onboard.start", lang)}</button>
-      <div className="flex items-center justify-center gap-1.5 text-[11px] text-text-disabled">
-        <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" /></svg>
-        {t("onboard.local", lang)}
+      <div className="t-mono" style={{ marginBottom: 8 }}>SHOGUN · 将軍</div>
+      <h1 style={{ margin: 0, fontSize: 28, fontWeight: 600, letterSpacing: "-0.01em" }}>
+        {lang === "ja" ? "すべてを覚えるAI" : "The AI that remembers"}
+      </h1>
+      <p style={{ color: "var(--text-mute)", fontSize: 14, marginTop: 10, lineHeight: 1.6 }}>
+        {lang === "ja"
+          ? "あなたの文脈を記憶し、行動するAI OS"
+          : "A personal AI OS that carries your full context"}
+      </p>
+
+      <button onClick={onNext} className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 32 }}>
+        {t("onboard.start", lang)}
+        <Icon name="arrowRight" size={14} />
+      </button>
+
+      <div className="row" style={{ justifyContent: "center", gap: 6, marginTop: 20, fontSize: 11, color: "var(--text-dim)" }}>
+        <Icon name="lock" size={11} />
+        <span>{t("onboard.local", lang)}</span>
       </div>
     </div>
   );
@@ -60,27 +79,56 @@ function ApiKeys({ onNext, onBack, lang }: { onNext: () => void; onBack: () => v
   const [skip, setSkip] = useState(false);
 
   const handleNext = async () => {
-    try { if (!skip && openai) { const s = await api.loadSettings(); await api.saveSettings({ ...s, openai_api_key: openai || null }); } } catch {}
+    try {
+      if (!skip && openai) {
+        const s = await api.loadSettings();
+        await api.saveSettings({ ...s, openai_api_key: openai || null });
+      }
+    } catch { /* ignore */ }
     onNext();
   };
 
   return (
-    <div className="space-y-5">
-      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">{t("onboard.back", lang)}</button>
-      <h2 className="text-md font-semibold">{t("onboard.apikeys", lang)}</h2>
-      <div className="card space-y-3">
-        <label className="block">
-          <span className="text-xs text-text-secondary">OpenAI API Key</span>
-          <input className="input mt-1" type="password" placeholder="sk-..." value={openai} onChange={(e) => { setOpenai(e.target.value); setSkip(false); }} />
-        </label>
-        <a href="https://platform.openai.com/api-keys" target="_blank" rel="noreferrer" className="text-[11px] text-gold hover:text-gold-light">Get an API key →</a>
-      </div>
-      <label className="flex items-center gap-2 text-xs text-text-disabled cursor-pointer">
-        <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} className="rounded" />
-        {t("onboard.skip", lang)}
+    <div>
+      <button onClick={onBack} className="btn btn-sm btn-ghost" style={{ padding: 0, height: "auto", gap: 6, marginBottom: 20 }}>
+        <Icon name="arrowLeft" size={12} /> {t("onboard.back", lang)}
+      </button>
+
+      <div className="t-mono" style={{ marginBottom: 8 }}>STEP 2 / 5 · APIキー</div>
+      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{t("onboard.apikeys", lang)}</h2>
+      <p style={{ color: "var(--text-mute)", fontSize: 13, marginTop: 8, marginBottom: 20 }}>
+        {t("onboard.apikeys.hint", lang)}
+      </p>
+
+      <label style={{ display: "block", marginBottom: 12 }}>
+        <div className="t-mono" style={{ fontSize: 10, marginBottom: 6 }}>OPENAI API KEY</div>
+        <input
+          className="input"
+          type="password"
+          placeholder="sk-..."
+          value={openai}
+          onChange={(e) => { setOpenai(e.target.value); setSkip(false); }}
+        />
+        <a
+          href="https://platform.openai.com/api-keys"
+          target="_blank"
+          rel="noreferrer"
+          className="gold"
+          style={{ fontSize: 11, display: "inline-flex", alignItems: "center", gap: 4, marginTop: 8, textDecoration: "none" }}
+        >
+          Get an API key <Icon name="arrowUpRight" size={10} />
+        </a>
       </label>
-      <p className="text-[11px] text-text-disabled">{t("onboard.apikeys.hint", lang)}</p>
-      <button onClick={handleNext} className="btn-gold w-full">{t("onboard.next", lang)}</button>
+
+      <label className="row" style={{ gap: 8, cursor: "pointer", marginTop: 16, fontSize: 12, color: "var(--text-mute)" }}>
+        <input type="checkbox" checked={skip} onChange={(e) => setSkip(e.target.checked)} />
+        <span>{t("onboard.skip", lang)}</span>
+      </label>
+
+      <button onClick={handleNext} className="btn btn-primary" style={{ width: "100%", marginTop: 24 }}>
+        {t("onboard.next", lang)}
+        <Icon name="arrowRight" size={14} />
+      </button>
     </div>
   );
 }
@@ -91,31 +139,68 @@ function FirstMemory({ onNext, onBack, lang }: { onNext: () => void; onBack: () 
   const [creating, setCreating] = useState(false);
   const [done, setDone] = useState(false);
 
-  const slug = name ? `people/${name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}` : "people/...";
+  const slug = name
+    ? `people/${name.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "")}`
+    : "people/...";
 
   const create = async () => {
     if (!name) return;
     setCreating(true);
-    try { await api.putPage({ slug, title: name, page_type: "person", compiled_truth: desc || name, tags: [] }); setDone(true); } catch { setDone(true); }
+    try {
+      await api.putPage({ slug, title: name, page_type: "person", compiled_truth: desc || name, tags: [] });
+      setDone(true);
+    } catch { setDone(true); }
     setCreating(false);
   };
 
   return (
-    <div className="space-y-5">
-      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">{t("onboard.back", lang)}</button>
-      <h2 className="text-md font-semibold">{t("onboard.firstmemory", lang)}</h2>
-      <div className="space-y-3">
-        <label className="block"><span className="text-xs text-text-secondary">{t("onboard.name", lang)}</span><input className="input mt-1" placeholder="Toru Yamamoto" value={name} onChange={(e) => setName(e.target.value)} /></label>
-        <label className="block"><span className="text-xs text-text-secondary">{t("onboard.whatdo", lang)}</span><textarea className="input mt-1 h-20 resize-none" placeholder="Building SHOGUN..." value={desc} onChange={(e) => setDesc(e.target.value)} /></label>
+    <div>
+      <button onClick={onBack} className="btn btn-sm btn-ghost" style={{ padding: 0, height: "auto", gap: 6, marginBottom: 20 }}>
+        <Icon name="arrowLeft" size={12} /> {t("onboard.back", lang)}
+      </button>
+
+      <div className="t-mono" style={{ marginBottom: 8 }}>STEP 3 / 5 · 最初の記憶</div>
+      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{t("onboard.firstmemory", lang)}</h2>
+
+      <div className="col" style={{ gap: 12, marginTop: 20 }}>
+        <label style={{ display: "block" }}>
+          <div className="t-mono" style={{ fontSize: 10, marginBottom: 6 }}>{t("onboard.name", lang).toUpperCase()}</div>
+          <input className="input" placeholder="Toru Yamamoto" value={name} onChange={(e) => setName(e.target.value)} />
+        </label>
+        <label style={{ display: "block" }}>
+          <div className="t-mono" style={{ fontSize: 10, marginBottom: 6 }}>{t("onboard.whatdo", lang).toUpperCase()}</div>
+          <textarea
+            className="input"
+            style={{ height: 80, padding: 12, resize: "none" }}
+            placeholder="Building SHOGUN..."
+            value={desc}
+            onChange={(e) => setDesc(e.target.value)}
+          />
+        </label>
       </div>
-      <div className="card font-mono text-[11px] text-text-secondary"><span className="text-text-disabled">{slug}</span></div>
+
+      <div style={{
+        marginTop: 12, padding: "10px 12px", background: "var(--surface-2)",
+        border: "1px solid var(--border)", borderRadius: "var(--radius-md)",
+        fontFamily: "var(--font-mono)", fontSize: 11, color: "var(--text-mute)",
+      }}>
+        {slug}
+      </div>
+
       {done ? (
-        <div className="text-center space-y-3">
-          <div className="text-status-active text-sm font-medium">{t("onboard.created", lang)}</div>
-          <button onClick={onNext} className="btn-gold w-full">{t("onboard.next", lang)}</button>
+        <div style={{ textAlign: "center", marginTop: 20 }}>
+          <div className="row" style={{ justifyContent: "center", gap: 6, color: "var(--success)", fontSize: 14, fontWeight: 500 }}>
+            <Icon name="check" size={14} /> {t("onboard.created", lang)}
+          </div>
+          <button onClick={onNext} className="btn btn-primary" style={{ width: "100%", marginTop: 16 }}>
+            {t("onboard.next", lang)}
+            <Icon name="arrowRight" size={14} />
+          </button>
         </div>
       ) : (
-        <button onClick={create} disabled={!name || creating} className="btn-gold w-full">{creating ? t("onboard.creating", lang) : t("onboard.createpage", lang)}</button>
+        <button onClick={create} disabled={!name || creating} className="btn btn-primary" style={{ width: "100%", marginTop: 20 }}>
+          {creating ? t("onboard.creating", lang) : t("onboard.createpage", lang)}
+        </button>
       )}
     </div>
   );
@@ -128,42 +213,90 @@ function SearchDemo({ onNext, onBack, lang }: { onNext: () => void; onBack: () =
 
   const search = async () => {
     if (!query) return;
-    try { const r = await api.searchMemory(query, 5); setResults(r.map((x) => ({ slug: x.slug, title: x.title }))); } catch { setResults([]); }
+    try {
+      const r = await api.searchMemory(query, 5);
+      setResults(r.map((x) => ({ slug: x.slug, title: x.title })));
+    } catch { setResults([]); }
     setSearched(true);
   };
 
   return (
-    <div className="space-y-5">
-      <button onClick={onBack} className="text-xs text-text-disabled hover:text-text-secondary">{t("onboard.back", lang)}</button>
-      <h2 className="text-md font-semibold">{t("onboard.trysearch", lang)}</h2>
-      <div className="flex gap-2">
-        <input className="input flex-1" placeholder={t("search.placeholder", lang)} value={query} onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} />
-        <button onClick={search} className="btn-gold">{t("nav.search", lang)}</button>
+    <div>
+      <button onClick={onBack} className="btn btn-sm btn-ghost" style={{ padding: 0, height: "auto", gap: 6, marginBottom: 20 }}>
+        <Icon name="arrowLeft" size={12} /> {t("onboard.back", lang)}
+      </button>
+
+      <div className="t-mono" style={{ marginBottom: 8 }}>STEP 4 / 5 · 検索</div>
+      <h2 style={{ margin: 0, fontSize: 22, fontWeight: 600 }}>{t("onboard.trysearch", lang)}</h2>
+
+      <div className="row" style={{ gap: 8, marginTop: 20 }}>
+        <input
+          className="input"
+          style={{ flex: 1 }}
+          placeholder={t("search.placeholder", lang)}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && search()}
+        />
+        <button onClick={search} className="btn btn-primary">
+          <Icon name="search" size={14} />
+        </button>
       </div>
+
       {searched && (
-        <div className="space-y-1.5">
-          {results.length > 0 ? results.map((r) => <div key={r.slug} className="card text-sm">{r.title}</div>)
-            : <p className="text-xs text-text-disabled text-center py-3">{t("onboard.noresults", lang)}</p>}
+        <div className="col" style={{ gap: 6, marginTop: 16 }}>
+          {results.length > 0 ? results.map((r) => (
+            <div key={r.slug} className="card" style={{ padding: 12, fontSize: 13 }}>
+              {r.title}
+            </div>
+          )) : (
+            <p style={{ fontSize: 12, color: "var(--text-dim)", textAlign: "center", padding: 12 }}>
+              {t("onboard.noresults", lang)}
+            </p>
+          )}
         </div>
       )}
-      <button onClick={onNext} className="btn-gold w-full">{t("onboard.next", lang)}</button>
+
+      <button onClick={onNext} className="btn btn-primary" style={{ width: "100%", marginTop: 24 }}>
+        {t("onboard.next", lang)}
+        <Icon name="arrowRight" size={14} />
+      </button>
     </div>
   );
 }
 
 function Complete({ onFinish, lang }: { onFinish: () => void } & P) {
   const finish = async () => {
-    try { const s = await api.loadSettings(); await api.saveSettings({ ...s, onboarding_completed: true }); } catch {}
+    try {
+      const s = await api.loadSettings();
+      await api.saveSettings({ ...s, onboarding_completed: true });
+    } catch { /* ignore */ }
     onFinish();
   };
+
   return (
-    <div className="text-center space-y-6">
-      <div className="w-16 h-16 rounded-full bg-gold/10 flex items-center justify-center mx-auto"><span className="text-gold text-2xl">✓</span></div>
-      <div>
-        <h2 className="text-xl font-semibold">{t("onboard.ready", lang)}</h2>
-        <p className="text-sm text-text-secondary mt-1">{t("onboard.ready.sub", lang)}</p>
+    <div style={{ textAlign: "center" }}>
+      <div style={{ display: "flex", justifyContent: "center", marginBottom: 24 }}>
+        <div style={{
+          width: 64, height: 64, borderRadius: "50%",
+          background: "color-mix(in srgb, var(--gold) 15%, transparent)",
+          border: "1px solid var(--gold-dim)",
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <Icon name="check" size={28} className="gold" />
+        </div>
       </div>
-      <button onClick={finish} className="btn-gold w-full">{t("onboard.done", lang)}</button>
+
+      <div className="t-mono" style={{ marginBottom: 8 }}>STEP 5 / 5 · 完了</div>
+      <h2 style={{ margin: 0, fontSize: 26, fontWeight: 600 }}>{t("onboard.ready", lang)}</h2>
+      <p style={{ color: "var(--text-mute)", fontSize: 14, marginTop: 10 }}>
+        {t("onboard.ready.sub", lang)}
+      </p>
+
+      <button onClick={finish} className="btn btn-primary btn-lg" style={{ width: "100%", marginTop: 28 }}>
+        {t("onboard.done", lang)}
+        <Icon name="arrowRight" size={14} />
+      </button>
     </div>
   );
 }

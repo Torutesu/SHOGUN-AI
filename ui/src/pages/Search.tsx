@@ -1,7 +1,8 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type SearchResult } from "../lib/tauri";
-import { useLang, t } from "../lib/i18n";
+import { Icon } from "../components/Icon";
+import { useLang } from "../lib/i18n";
 
 export function Search() {
   const [query, setQuery] = useState("");
@@ -19,53 +20,79 @@ export function Search() {
     setSearched(true);
   };
 
-  const icon: Record<string, string> = { person: "👤", company: "🏢", session: "📅", concept: "💡" };
+  const typeIcon: Record<string, string> = { person: "agents", company: "work", session: "calendar", concept: "note" };
 
   return (
-    <div className="p-6 max-w-[720px] mx-auto space-y-4 animate-in">
-      <h1 className="text-md font-semibold">{t("search.title", lang)}</h1>
-
-      <div className="flex gap-2">
-        <div className="relative flex-1">
-          <svg className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-text-disabled" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-          </svg>
-          <input className="input pl-9" placeholder={t("search.placeholder", lang)} value={query}
-            onChange={(e) => setQuery(e.target.value)} onKeyDown={(e) => e.key === "Enter" && search()} autoFocus />
+    <div className="content-inner" style={{ maxWidth: 820, margin: "0 auto", padding: "32px 40px 64px" }}>
+      <div className="page-head">
+        <div>
+          <div className="t-mono" style={{ marginBottom: 6 }}>SEARCH · 検索</div>
+          <h1><span className="en-only">Search</span><span className="jp">検索</span></h1>
         </div>
-        <button onClick={search} disabled={searching} className="btn-gold">{searching ? "..." : "Search"}</button>
+      </div>
+
+      <div className="row" style={{ gap: 8, marginBottom: 24 }}>
+        <div className="row" style={{ flex: 1, height: 48, padding: "0 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", gap: 10 }}>
+          <Icon name="search" size={16} className="dim" />
+          <input
+            className="input"
+            style={{ border: 0, background: "transparent", padding: 0, height: "auto", flex: 1 }}
+            placeholder={lang === "ja" ? "何でも検索..." : "Search anything..."}
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && search()}
+            autoFocus
+          />
+        </div>
+        <button onClick={search} disabled={searching} className="btn btn-primary">
+          {searching ? "..." : "Search"}
+        </button>
       </div>
 
       {searched && (
-        <div className="space-y-2">
-          <div className="text-xs text-text-disabled">{results.length} {t("search.results", lang)}</div>
+        <div className="col" style={{ gap: 8 }}>
+          <div className="t-mono" style={{ marginBottom: 4 }}>
+            {results.length} {lang === "ja" ? "件の結果" : "results"}
+          </div>
           {results.length === 0 ? (
-            <div className="card text-center py-8 text-sm text-text-disabled">{t("search.none", lang)}</div>
-          ) : results.map((r) => (
-            <div key={r.slug} className="card-interactive flex items-center gap-3"
-              onClick={() => navigate(`/page/${encodeURIComponent(r.slug)}`)}>
-              <span className="text-base">{icon[r.page_type] ?? "📄"}</span>
-              <div className="flex-1 min-w-0">
-                <div className="text-sm font-medium truncate">{r.title}</div>
-                <div className="text-[11px] text-text-disabled truncate">{r.snippet}</div>
-              </div>
-              <div className="flex items-center gap-2 shrink-0">
-                <span className="badge badge-gold text-[10px]">{r.page_type}</span>
-                <span className="text-[10px] text-text-disabled font-mono">{r.score.toFixed(3)}</span>
-              </div>
+            <div className="card" style={{ textAlign: "center", padding: 40, color: "var(--text-dim)", fontSize: 13 }}>
+              {lang === "ja" ? "結果なし" : "No results found"}
             </div>
-          ))}
+          ) : (
+            results.map((r) => (
+              <div
+                key={r.slug}
+                className="card card-interactive row"
+                onClick={() => navigate(`/page/${encodeURIComponent(r.slug)}`)}
+                style={{ gap: 14, padding: 16 }}
+              >
+                <div style={{ width: 36, height: 36, borderRadius: "var(--radius-md)", background: "var(--surface-2)", border: "1px solid var(--border)", display: "flex", alignItems: "center", justifyContent: "center" }}>
+                  <Icon name={typeIcon[r.page_type] ?? "file"} size={15} className="gold" />
+                </div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 14, fontWeight: 500 }}>{r.title}</div>
+                  <div style={{ fontSize: 12, color: "var(--text-mute)", marginTop: 2, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                    {r.snippet}
+                  </div>
+                </div>
+                <div className="row" style={{ gap: 8 }}>
+                  <span className="label label-gold">{r.page_type}</span>
+                  <span className="t-mono" style={{ fontSize: 10 }}>{r.score.toFixed(3)}</span>
+                </div>
+              </div>
+            ))
+          )}
         </div>
       )}
 
       {!searched && (
-        <div className="text-center py-16 space-y-3">
-          <div className="w-12 h-12 rounded-full bg-surface-alt flex items-center justify-center mx-auto">
-            <svg className="w-5 h-5 text-text-disabled" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-            </svg>
+        <div style={{ textAlign: "center", padding: "64px 20px" }}>
+          <div style={{ width: 48, height: 48, borderRadius: "50%", background: "var(--surface-2)", display: "inline-flex", alignItems: "center", justifyContent: "center", marginBottom: 12 }}>
+            <Icon name="search" size={20} className="dim" />
           </div>
-          <p className="text-sm text-text-secondary">{t("search.empty", lang)}</p>
+          <div style={{ fontSize: 14, color: "var(--text-mute)" }}>
+            {lang === "ja" ? "キーワードまたは自然言語で検索" : "Keyword or natural language query"}
+          </div>
         </div>
       )}
     </div>

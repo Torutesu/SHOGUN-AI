@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from "react";
 import { api } from "../lib/tauri";
-import { useLang, t } from "../lib/i18n";
+import { Icon, Kamon } from "../components/Icon";
+import { useLang } from "../lib/i18n";
 
 interface ChatMsg {
   role: "user" | "assistant";
@@ -13,17 +14,18 @@ export function Chat() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
+  const lang = useLang();
 
   useEffect(() => { endRef.current?.scrollIntoView({ behavior: "smooth" }); }, [msgs]);
 
-  const send = async () => {
-    const text = input.trim();
-    if (!text || loading) return;
-    setMsgs((p) => [...p, { role: "user", content: text }]);
+  const send = async (text?: string) => {
+    const msg = (text ?? input).trim();
+    if (!msg || loading) return;
+    setMsgs((p) => [...p, { role: "user", content: msg }]);
     setInput("");
     setLoading(true);
     try {
-      const res = await api.chat(text);
+      const res = await api.chat(msg);
       const r = res as { content?: string; citations?: { slug: string; title: string; snippet: string }[] };
       setMsgs((p) => [...p, {
         role: "assistant",
@@ -31,98 +33,135 @@ export function Chat() {
         citations: r?.citations,
       }]);
     } catch {
-      setMsgs((p) => [...p, { role: "assistant", content: t("chat.error", lang) }]);
+      setMsgs((p) => [...p, { role: "assistant", content: "Failed — check API keys in Settings." }]);
     }
     setLoading(false);
   };
 
-  const lang = useLang();
   const suggestions = lang === "ja"
     ? ["今週誰と話した？", "先月の進捗は？", "最近の決定事項は？", "未完了タスクは？"]
-    : ["Who did I talk to this week?", "Last month's progress?", "Recent decisions?", "Open tasks?"];
+    : ["Who did I meet this week?", "Last month's progress?", "Recent decisions?", "Open tasks?"];
 
   return (
-    <div className="flex flex-col h-full">
+    <div className="content-inner wide" style={{ padding: 0, height: "100%", display: "flex", flexDirection: "column" }}>
       {/* Header */}
-      <div className="px-6 py-4 border-b border-border">
-        <h1 className="text-md font-semibold">{t("chat.title", lang)}</h1>
-        <p className="text-xs text-text-disabled mt-0.5">{t("chat.subtitle", lang)}</p>
+      <div style={{ padding: "24px 40px 20px", borderBottom: "1px solid var(--border)" }}>
+        <div className="t-mono" style={{ marginBottom: 6 }}>CHAT · 対話</div>
+        <h1 style={{ margin: 0, fontSize: 24, fontWeight: 500 }}>
+          Ask your memory <span className="jp muted" style={{ fontSize: 14, fontWeight: 300, marginLeft: 8 }}>記憶に問う</span>
+        </h1>
       </div>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto px-6 py-4 space-y-4">
-        {msgs.length === 0 && (
-          <div className="flex flex-col items-center justify-center h-full space-y-6 text-center">
-            <div className="w-12 h-12 rounded-full bg-gold/10 flex items-center justify-center">
-              <span className="text-gold text-xl">将</span>
-            </div>
+      <div style={{ flex: 1, overflowY: "auto", padding: "24px 40px" }}>
+        {msgs.length === 0 ? (
+          <div style={{ display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", height: "100%", gap: 28, textAlign: "center" }}>
+            <Kamon size={48} color="var(--gold)" />
             <div>
-              <p className="text-sm text-text-secondary">{t("chat.empty", lang)}</p>
+              <div style={{ fontSize: 22, fontWeight: 500, marginBottom: 6 }}>Your memory, on demand.</div>
+              <div style={{ color: "var(--text-mute)", fontSize: 14 }}>
+                SHOGUN remembers everything you do. Ask anything.
+              </div>
             </div>
-            <div className="flex flex-wrap justify-center gap-2 max-w-md">
+            <div style={{ display: "flex", flexWrap: "wrap", justifyContent: "center", gap: 10, maxWidth: 520 }}>
               {suggestions.map((q) => (
-                <button key={q} onClick={() => { setInput(q); setTimeout(() => send(), 0); }}
-                  className="text-xs px-3 py-1.5 rounded-md bg-surface border border-border-subtle text-text-secondary hover:border-border hover:text-text-primary transition-all">
+                <button
+                  key={q}
+                  onClick={() => send(q)}
+                  className="btn btn-sm btn-secondary"
+                  style={{ fontSize: 13 }}
+                >
                   {q}
                 </button>
               ))}
             </div>
           </div>
-        )}
-
-        {msgs.map((m, i) => (
-          <div key={i} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-            <div className={`max-w-[75%] rounded-lg px-3.5 py-2.5 text-sm ${
-              m.role === "user"
-                ? "bg-gold/15 text-text-primary border border-gold-dim"
-                : "bg-surface border border-border"
-            }`}>
-              <p className="whitespace-pre-wrap leading-relaxed">{m.content}</p>
-              {m.citations && m.citations.length > 0 && (
-                <div className="mt-2 pt-2 border-t border-border space-y-1">
-                  <div className="text-[10px] text-text-disabled uppercase tracking-widest">{t("chat.sources", lang)}</div>
-                  {m.citations.map((c, j) => (
-                    <a key={j} href={`/page/${encodeURIComponent(c.slug)}`}
-                      className="block text-xs text-gold hover:text-gold-light transition-colors">
-                      {c.title}
-                    </a>
-                  ))}
+        ) : (
+          <div style={{ maxWidth: 760, margin: "0 auto", display: "flex", flexDirection: "column", gap: 20 }}>
+            {msgs.map((m, i) => (
+              <div key={i} style={{ display: "flex", justifyContent: m.role === "user" ? "flex-end" : "flex-start" }}>
+                <div style={{
+                  maxWidth: "85%",
+                  borderRadius: 12,
+                  padding: "12px 16px",
+                  fontSize: 14,
+                  lineHeight: 1.65,
+                  background: m.role === "user" ? "var(--surface-2)" : "var(--surface)",
+                  border: m.role === "user" ? "1px solid var(--border)" : "1px solid var(--border)",
+                }}>
+                  {m.role === "assistant" && (
+                    <div className="row" style={{ gap: 6, marginBottom: 8 }}>
+                      <Kamon size={14} color="var(--gold)" />
+                      <span className="t-mono" style={{ fontSize: 10, color: "var(--gold)" }}>SHOGUN</span>
+                    </div>
+                  )}
+                  <div style={{ whiteSpace: "pre-wrap" }}>{m.content}</div>
+                  {m.citations && m.citations.length > 0 && (
+                    <div style={{ marginTop: 10, paddingTop: 10, borderTop: "1px solid var(--border)" }}>
+                      <div className="t-mono" style={{ fontSize: 9, marginBottom: 6 }}>SOURCES · 出典</div>
+                      {m.citations.map((c, j) => (
+                        <a
+                          key={j}
+                          href={`/page/${encodeURIComponent(c.slug)}`}
+                          style={{ display: "block", fontSize: 12, color: "var(--gold)", textDecoration: "none", marginBottom: 2 }}
+                        >
+                          → {c.title}
+                        </a>
+                      ))}
+                    </div>
+                  )}
                 </div>
-              )}
-            </div>
-          </div>
-        ))}
-
-        {loading && (
-          <div className="flex justify-start">
-            <div className="bg-surface border border-border rounded-lg px-4 py-3">
-              <div className="flex gap-1.5">
-                <span className="w-1.5 h-1.5 bg-gold rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                <span className="w-1.5 h-1.5 bg-gold rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                <span className="w-1.5 h-1.5 bg-gold rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
               </div>
-            </div>
+            ))}
+            {loading && (
+              <div style={{ display: "flex" }}>
+                <div style={{ background: "var(--surface)", border: "1px solid var(--border)", borderRadius: 12, padding: "12px 16px" }}>
+                  <div style={{ display: "flex", gap: 4 }}>
+                    {[0, 150, 300].map((d) => (
+                      <span key={d} style={{
+                        width: 6, height: 6, borderRadius: "50%",
+                        background: "var(--gold)",
+                        animation: "chatPulse 1.2s infinite",
+                        animationDelay: `${d}ms`,
+                      }} />
+                    ))}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div ref={endRef} />
           </div>
         )}
-        <div ref={endRef} />
       </div>
 
       {/* Input */}
-      <div className="px-6 py-3 border-t border-border">
-        <div className="flex gap-2 max-w-2xl mx-auto">
-          <input
-            className="input flex-1"
-            placeholder={t("chat.placeholder", lang)}
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
-            autoFocus
-          />
-          <button onClick={send} disabled={!input.trim() || loading} className="btn-gold">
-            {t("chat.send", lang)}
+      <div style={{ padding: "16px 40px 24px", borderTop: "1px solid var(--border)" }}>
+        <div className="row" style={{ gap: 10, maxWidth: 760, margin: "0 auto" }}>
+          <div className="row" style={{ flex: 1, height: 48, padding: "0 16px", background: "var(--surface)", border: "1px solid var(--border)", borderRadius: "var(--radius-md)", gap: 10 }}>
+            <Icon name="paperclip" size={15} className="dim" />
+            <input
+              className="input"
+              style={{ border: 0, background: "transparent", padding: 0, height: "auto", flex: 1 }}
+              placeholder={lang === "ja" ? "メモリに質問..." : "Ask your memory..."}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && send()}
+              autoFocus
+            />
+            <Icon name="mic" size={15} className="dim" />
+          </div>
+          <button onClick={() => send()} disabled={!input.trim() || loading} className="btn btn-primary">
+            <Icon name="arrowRight" size={14} /> Send
           </button>
         </div>
       </div>
+
+      <style>{`
+        @keyframes chatPulse {
+          0%, 60%, 100% { opacity: 0.3; }
+          30% { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }

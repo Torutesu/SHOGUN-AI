@@ -1,11 +1,7 @@
 import { useState } from "react";
 import { api } from "../lib/tauri";
+import { Icon } from "./Icon";
 import { useLang } from "../lib/i18n";
-
-/**
- * Private Mode — pause capture for a selected duration.
- * Options: 5min, 15min, 30min, 1h, until restart
- */
 
 const DURATIONS = [
   { key: "5min", ms: 5 * 60_000, ja: "5分", en: "5 min" },
@@ -29,19 +25,17 @@ export function PrivateMode({ isActive, onToggle }: { isActive: boolean; onToggl
       if (duration.ms > 0) {
         const until = new Date(Date.now() + duration.ms);
         setPausedUntil(until.toLocaleTimeString());
-
-        // Auto-resume after duration
         setTimeout(async () => {
           try {
             await api.resumeCapture();
             onToggle(true);
             setPausedUntil(null);
-          } catch {}
+          } catch { /* ignore */ }
         }, duration.ms);
       } else {
         setPausedUntil(lang === "ja" ? "再起動まで" : "Until restart");
       }
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   const resume = async () => {
@@ -49,48 +43,97 @@ export function PrivateMode({ isActive, onToggle }: { isActive: boolean; onToggl
       await api.resumeCapture();
       onToggle(true);
       setPausedUntil(null);
-    } catch {}
+    } catch { /* ignore */ }
   };
 
   if (!isActive && pausedUntil) {
     return (
-      <div className="px-4 py-3 border-t border-border">
-        <button onClick={resume} className="flex items-center gap-2 text-xs w-full">
-          <span className="w-2 h-2 rounded-full bg-status-warn" />
-          <div className="text-left">
-            <span className="text-status-warn">{lang === "ja" ? "一時停止中" : "Paused"}</span>
-            <span className="text-text-disabled ml-1.5">→ {pausedUntil}</span>
-          </div>
+      <div style={{ position: "relative" }}>
+        <button
+          onClick={resume}
+          className="capturing-pill"
+          style={{
+            border: "1px solid color-mix(in srgb, var(--warning) 50%, transparent)",
+            color: "var(--warning)",
+            cursor: "pointer",
+          }}
+        >
+          <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--warning)" }} />
+          {lang === "ja" ? "一時停止" : "PAUSED"} · {pausedUntil}
         </button>
       </div>
     );
   }
 
   return (
-    <div className="px-4 py-3 border-t border-border relative">
-      <button onClick={() => isActive ? setOpen(!open) : resume()} className="flex items-center gap-2 text-xs w-full">
-        {isActive
-          ? <><span className="dot-pulse" /><span className="text-text-secondary">{lang === "ja" ? "キャプチャ中" : "Capturing"}</span></>
-          : <><span className="w-2 h-2 rounded-full bg-text-disabled" /><span className="text-text-disabled">{lang === "ja" ? "停止中" : "Stopped"}</span></>
-        }
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => (isActive ? setOpen(!open) : resume())}
+        className="capturing-pill"
+        style={{ cursor: "pointer" }}
+      >
+        {isActive ? (
+          <>
+            <span className="pulse" />
+            {lang === "ja" ? "キャプチャ中" : "CAPTURING"}
+          </>
+        ) : (
+          <>
+            <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-dim)" }} />
+            {lang === "ja" ? "停止中" : "STOPPED"}
+          </>
+        )}
       </button>
 
-      {/* Duration selector dropdown */}
       {open && (
-        <div className="absolute bottom-full left-3 mb-1 bg-surface border border-border rounded-md shadow-lg py-1 min-w-[160px] animate-down z-30">
-          <div className="px-3 py-1.5 text-[10px] text-text-disabled uppercase tracking-widest">
-            {lang === "ja" ? "一時停止" : "Pause capture"}
+        <>
+          <div
+            onClick={() => setOpen(false)}
+            style={{ position: "fixed", inset: 0, zIndex: 10 }}
+          />
+          <div
+            className="card"
+            style={{
+              position: "absolute",
+              bottom: "calc(100% + 6px)",
+              right: 0,
+              padding: 6,
+              minWidth: 180,
+              zIndex: 20,
+              boxShadow: "var(--shadow-md)",
+            }}
+          >
+            <div className="t-mono" style={{ fontSize: 9, padding: "6px 10px" }}>
+              <Icon name="pause" size={9} /> {lang === "ja" ? "一時停止" : "PAUSE CAPTURE"}
+            </div>
+            {DURATIONS.map((d) => (
+              <button
+                key={d.key}
+                onClick={() => pause(d)}
+                style={{
+                  display: "block",
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "8px 10px",
+                  fontSize: 12,
+                  color: "var(--text-mute)",
+                  borderRadius: "var(--radius-sm)",
+                  transition: "all var(--dur-fast)",
+                }}
+                onMouseEnter={(e) => {
+                  e.currentTarget.style.background = "var(--surface-2)";
+                  e.currentTarget.style.color = "var(--text)";
+                }}
+                onMouseLeave={(e) => {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--text-mute)";
+                }}
+              >
+                {lang === "ja" ? d.ja : d.en}
+              </button>
+            ))}
           </div>
-          {DURATIONS.map((d) => (
-            <button
-              key={d.key}
-              onClick={() => pause(d)}
-              className="w-full text-left px-3 py-1.5 text-xs text-text-secondary hover:text-text-primary hover:bg-surface-alt transition-colors"
-            >
-              {lang === "ja" ? d.ja : d.en}
-            </button>
-          ))}
-        </div>
+        </>
       )}
     </div>
   );

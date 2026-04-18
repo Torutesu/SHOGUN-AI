@@ -1,140 +1,84 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type BrainStats, type HealthReport } from "../lib/tauri";
-import { useLang, t } from "../lib/i18n";
+import { api, type BrainStats } from "../lib/tauri";
+import { Icon } from "../components/Icon";
 
 export function Dashboard() {
   const [stats, setStats] = useState<BrainStats | null>(null);
-  const [health, setHealth] = useState<HealthReport | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [dreamRunning, setDreamRunning] = useState(false);
-  const [dreamDone, setDreamDone] = useState(false);
   const navigate = useNavigate();
-  const lang = useLang();
 
   useEffect(() => {
-    Promise.all([
-      api.getBrainStats().then(setStats),
-      api.getHealth().then(setHealth),
-    ]).catch((e) => setError(e instanceof Error ? e.message : "Failed"))
-      .finally(() => setLoading(false));
+    api.getBrainStats().then(setStats).catch(() => {});
   }, []);
 
-  const hour = new Date().getHours();
-  const greeting = hour < 12 ? t("dash.greeting.morning", lang)
-    : hour < 18 ? t("dash.greeting.afternoon", lang)
-    : t("dash.greeting.evening", lang);
-
-  const score = getScore(stats?.total_pages ?? 0);
-
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
+  const now = new Date();
+  const dateStr = now.toLocaleDateString("en-US", { month: "short", day: "numeric", weekday: "long" }).toUpperCase() + " · " + now.toTimeString().slice(0, 5);
+  const hour = now.getHours();
+  const greeting = hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
 
   return (
-    <div className="p-6 max-w-[960px] mx-auto space-y-6 animate-in">
-      <div className="flex items-start justify-between">
-        <div>
-          <h1 className="text-xl font-semibold">{greeting}</h1>
-          <p className="text-sm text-text-secondary mt-0.5">
-            {stats && stats.total_pages > 0
-              ? `${stats.total_pages.toLocaleString()} ${t("dash.memories", lang)}`
-              : t("dash.first", lang)}
-          </p>
+    <div className="content-inner" style={{ maxWidth: 880, margin: "0 auto", padding: "80px 40px 64px" }}>
+      <div style={{ marginBottom: 48 }}>
+        <div className="t-mono" style={{ marginBottom: 12 }}>{dateStr}</div>
+        <h1 style={{ fontSize: 40, fontWeight: 600, letterSpacing: "-0.02em", margin: "0 0 10px" }}>
+          {greeting}, Kenshin.
+        </h1>
+        <div style={{ color: "var(--text-mute)", fontSize: 16 }}>
+          {stats?.total_timeline_entries ?? 0} memories captured today.
         </div>
-        {stats && stats.total_pages > 0 && (
-          <div className="text-right">
-            <div className="text-2xl font-semibold text-gold">{score.value}</div>
-            <div className="text-[10px] text-text-disabled uppercase tracking-widest">{score.label}</div>
-          </div>
-        )}
       </div>
 
-      {error && <div className="bg-status-error/10 border border-status-error/20 rounded-md px-3 py-2 text-sm text-status-error animate-down">{error}</div>}
-
-      <div className="grid grid-cols-4 gap-3">
-        <Metric label={t("metric.pages", lang)} value={stats?.total_pages ?? 0} delay={0} />
-        <Metric label={t("metric.chunks", lang)} value={stats?.total_chunks ?? 0} delay={50} />
-        <Metric label={t("metric.links", lang)} value={stats?.total_links ?? 0} delay={100} />
-        <Metric label={t("metric.events", lang)} value={stats?.total_timeline_entries ?? 0} delay={150} />
+      {/* Synthesized day — single focal card */}
+      <div className="card" style={{ padding: 40, borderColor: "var(--border-hi)", marginBottom: 20 }}>
+        <div className="t-mono gold" style={{ marginBottom: 18 }}>◆ YOUR DAY · SYNTHESIZED</div>
+        <div style={{ fontSize: 22, fontWeight: 500, lineHeight: 1.45, marginBottom: 28 }}>
+          You spent <span className="gold">2h 14m</span> in product calls with <span className="gold">Matt</span> and the <span className="gold">Toru team</span>, mostly on pricing. The Revenue-cat chat from 14:02 proposed a three-tier model you haven't written down yet.
+        </div>
+        <div className="row" style={{ gap: 8, flexWrap: "wrap" }}>
+          <button className="btn btn-sm btn-secondary" onClick={() => navigate("/chat")}>
+            Draft the pricing doc <Icon name="arrowRight" size={14} />
+          </button>
+          <button className="btn btn-sm btn-secondary">Schedule Matt follow-up</button>
+          <button className="btn btn-sm btn-ghost">Dismiss</button>
+        </div>
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
-        <div className="card animate-up" style={{ animationDelay: "200ms" }}>
-          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-3">{t("dash.health", lang)}</div>
-          {health && (
-            <div className="space-y-3">
-              <ProgressBar label={t("metric.coverage", lang)} value={health.embed_coverage} />
-              <Row label={t("metric.stale", lang)} value={health.stale_pages} warn={health.stale_pages > 0} />
-              <Row label={t("metric.orphans", lang)} value={health.orphan_pages} warn={health.orphan_pages > 0} />
+      {/* Ask SHOGUN input */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "4px 0" }}>
+        <div
+          className="row"
+          onClick={() => window.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true }))}
+          style={{
+            flex: 1, height: 56, padding: "0 20px",
+            background: "var(--surface)", border: "1px solid var(--border)",
+            borderRadius: "var(--radius-lg)", color: "var(--text-dim)",
+            fontSize: 15, cursor: "pointer",
+          }}
+        >
+          <Icon name="search" size={16} />
+          <span>Ask your memory or run a command…</span>
+          <span className="spacer" />
+          <span className="t-mono" style={{ fontSize: 11, border: "1px solid var(--border)", padding: "2px 8px", borderRadius: 4 }}>⌘K</span>
+        </div>
+      </div>
+
+      {/* Quick stats row */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 12, marginTop: 32 }}>
+        {[
+          { label: "PAGES",    value: stats?.total_pages ?? 0, icon: "file" },
+          { label: "CHUNKS",   value: stats?.total_chunks ?? 0, icon: "grid" },
+          { label: "LINKS",    value: stats?.total_links ?? 0, icon: "link" },
+          { label: "EVENTS",   value: stats?.total_timeline_entries ?? 0, icon: "clock" },
+        ].map((s) => (
+          <div key={s.label} className="card" style={{ padding: 20 }}>
+            <div className="row" style={{ gap: 8, marginBottom: 8 }}>
+              <Icon name={s.icon} size={14} className="dim" />
+              <span className="t-mono" style={{ fontSize: 10 }}>{s.label}</span>
             </div>
-          )}
-        </div>
-
-        <div className="card animate-up" style={{ animationDelay: "300ms" }}>
-          <div className="text-[10px] text-text-disabled uppercase tracking-widest mb-3">{t("dash.actions", lang)}</div>
-          <div className="space-y-1.5">
-            <ActionBtn icon="🧠" label={t("dash.ask", lang)} sub={t("dash.ask.sub", lang)} onClick={() => navigate("/chat")} />
-            <ActionBtn icon="🔍" label={t("dash.search", lang)} sub={t("dash.search.sub", lang)} onClick={() => navigate("/search")} />
-            <ActionBtn
-              icon={dreamRunning ? undefined : "🌙"}
-              label={dreamRunning ? t("dash.dream.running", lang) : dreamDone ? t("dash.dream.done", lang) : t("dash.dream", lang)}
-              sub={t("dash.dream.sub", lang)}
-              spinning={dreamRunning}
-              onClick={async () => {
-                if (dreamRunning) return;
-                setDreamRunning(true);
-                try { await api.runDreamCycle(); setDreamDone(true); api.getBrainStats().then(setStats); api.getHealth().then(setHealth); setTimeout(() => setDreamDone(false), 3000); } catch {}
-                setDreamRunning(false);
-              }}
-            />
+            <div style={{ fontSize: 24, fontWeight: 600 }}>{s.value.toLocaleString()}</div>
           </div>
-        </div>
+        ))}
       </div>
     </div>
   );
-}
-
-function Metric({ label, value, delay }: { label: string; value: number; delay: number }) {
-  return (
-    <div className="card animate-up" style={{ animationDelay: `${delay}ms` }}>
-      <div className="text-xl font-semibold">{value.toLocaleString()}</div>
-      <div className="text-[10px] text-text-disabled uppercase tracking-widest mt-0.5">{label}</div>
-    </div>
-  );
-}
-
-function ProgressBar({ label, value }: { label: string; value: number }) {
-  const pct = Math.round(value * 100);
-  return (
-    <div>
-      <div className="flex justify-between text-xs mb-1">
-        <span className="text-text-secondary">{label}</span><span>{pct}%</span>
-      </div>
-      <div className="h-1 bg-border rounded-full overflow-hidden">
-        <div className="h-full bg-gold rounded-full transition-all duration-1000" style={{ width: `${pct}%` }} />
-      </div>
-    </div>
-  );
-}
-
-function Row({ label, value, warn }: { label: string; value: number; warn: boolean }) {
-  return <div className="flex justify-between text-xs"><span className="text-text-secondary">{label}</span><span className={warn ? "text-status-warn" : "text-status-active"}>{value}</span></div>;
-}
-
-function ActionBtn({ icon, label, sub, onClick, spinning }: { icon?: string; label: string; sub: string; onClick: () => void; spinning?: boolean }) {
-  return (
-    <button onClick={onClick} className="btn-surface w-full text-left flex items-center gap-3 py-2">
-      {spinning ? <div className="w-4 h-4 border-2 border-gold border-t-transparent rounded-full animate-spin" /> : <span className="text-base">{icon}</span>}
-      <div className="min-w-0"><div className="text-sm font-medium text-text-primary truncate">{label}</div><div className="text-[11px] text-text-disabled truncate">{sub}</div></div>
-    </button>
-  );
-}
-
-function getScore(pages: number) {
-  if (pages >= 10000) return { value: 99, label: "Omniscient" };
-  if (pages >= 5000) return { value: 85, label: "Sage" };
-  if (pages >= 1000) return { value: 70, label: "Scholar" };
-  if (pages >= 100) return { value: 50, label: "Apprentice" };
-  if (pages >= 10) return { value: 25, label: "Novice" };
-  return { value: Math.max(1, pages), label: "Awakening" };
 }

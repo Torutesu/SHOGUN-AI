@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { api, type AppSettings } from "../lib/tauri";
-import { useLang, t } from "../lib/i18n";
+import { Icon } from "../components/Icon";
+import { useLang } from "../lib/i18n";
 
 export function Settings() {
   const [s, setS] = useState<AppSettings | null>(null);
@@ -24,46 +25,56 @@ export function Settings() {
     setSaving(false);
   };
 
-  if (loading) return <div className="flex items-center justify-center h-full"><div className="w-5 h-5 border-2 border-gold border-t-transparent rounded-full animate-spin" /></div>;
-  if (!s) return <div className="p-6 text-status-error text-sm">{error ?? "Failed"}</div>;
+  if (loading) return <div style={{ height: "100%", display: "flex", alignItems: "center", justifyContent: "center" }}><div style={{ width: 20, height: 20, border: "2px solid var(--gold)", borderTopColor: "transparent", borderRadius: "50%", animation: "spin 1s linear infinite" }} /></div>;
+  if (!s) return <div className="content-inner" style={{ padding: 40 }}><div style={{ color: "var(--danger)" }}>{error ?? "Failed to load"}</div></div>;
 
   return (
-    <div className="p-6 max-w-[560px] mx-auto space-y-5 animate-in">
-      <h1 className="text-md font-semibold">{t("settings.title", lang)}</h1>
-      {error && <div className="bg-status-error/10 border border-status-error/20 rounded-md px-3 py-2 text-xs text-status-error animate-down">{error}</div>}
+    <div className="content-inner" style={{ maxWidth: 720, margin: "0 auto", padding: "32px 40px 64px" }}>
+      <div className="page-head">
+        <div>
+          <div className="t-mono" style={{ marginBottom: 6 }}>SETTINGS · 設定</div>
+          <h1><span className="en-only">Settings</span><span className="jp">設定</span></h1>
+        </div>
+      </div>
 
-      <Sec title={t("settings.apikeys", lang)}>
+      {error && (
+        <div className="card" style={{ marginBottom: 20, borderColor: "var(--danger)", color: "var(--danger)" }}>
+          {error}
+        </div>
+      )}
+
+      <Section title="API KEYS · 鍵">
         <Field label="OpenAI" type="password" placeholder="sk-..." value={s.openai_api_key ?? ""} onChange={(v) => u({ openai_api_key: v || null })} />
         <Field label="Anthropic" type="password" placeholder="sk-ant-..." value={s.anthropic_api_key ?? ""} onChange={(v) => u({ anthropic_api_key: v || null })} />
-      </Sec>
+      </Section>
 
-      <Sec title={t("settings.embedding", lang)}>
-        <label className="block">
-          <span className="text-xs text-text-secondary">{t("settings.tier", lang)}</span>
-          <select className="input mt-1" value={s.embedding_tier} onChange={(e) => u({ embedding_tier: e.target.value })}>
-            <option value="fast">{t("settings.tier.fast", lang)}</option>
-            <option value="balanced">{t("settings.tier.balanced", lang)}</option>
-            <option value="full">{t("settings.tier.full", lang)}</option>
+      <Section title="EMBEDDING · 埋込">
+        <label style={{ display: "block" }}>
+          <div className="t-mono" style={{ fontSize: 10, marginBottom: 6 }}>TIER</div>
+          <select className="input" value={s.embedding_tier} onChange={(e) => u({ embedding_tier: e.target.value })}>
+            <option value="fast">Fast · 256 dims</option>
+            <option value="balanced">Balanced · 1536 dims</option>
+            <option value="full">Full · 3072 dims</option>
           </select>
         </label>
-      </Sec>
+      </Section>
 
-      <Sec title={t("settings.storage", lang)}>
-        <Field label={t("settings.datadir", lang)} value={s.data_dir} onChange={(v) => u({ data_dir: v })} />
-        <Toggle label={t("settings.encryption", lang)} sub={t("settings.encryption.sub", lang)} checked={s.encryption_enabled} onChange={(v) => u({ encryption_enabled: v })} />
-      </Sec>
+      <Section title="STORAGE & SECURITY · 保管">
+        <Field label="Data Directory" value={s.data_dir} onChange={(v) => u({ data_dir: v })} />
+        <Toggle label="Encryption" sub="AES-256-GCM · Requires restart" checked={s.encryption_enabled} onChange={(v) => u({ encryption_enabled: v })} />
+      </Section>
 
-      <Sec title={t("settings.capture", lang)}>
-        <Toggle label={t("settings.dreamcycle", lang)} sub={t("settings.dreamcycle.sub", lang)} checked={s.dream_cycle_enabled} onChange={(v) => u({ dream_cycle_enabled: v })} />
-      </Sec>
+      <Section title="CAPTURE · 捕捉">
+        <Toggle label="Auto-run Dream Cycle" sub="Daily at 00:00 JST" checked={s.dream_cycle_enabled} onChange={(v) => u({ dream_cycle_enabled: v })} />
+      </Section>
 
-      <Sec title={lang === "ja" ? "データ削除" : "Delete Data"}>
-        <div className="flex flex-wrap gap-2">
+      <Section title="DELETE DATA · 削除">
+        <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
           {[
-            { key: "last_5min", ja: "直近5分", en: "Last 5 min" },
-            { key: "last_15min", ja: "直近15分", en: "Last 15 min" },
-            { key: "last_30min", ja: "直近30分", en: "Last 30 min" },
-            { key: "last_1h", ja: "直近1時間", en: "Last 1 hour" },
+            { key: "last_5min", en: "Last 5 min", ja: "直近5分" },
+            { key: "last_15min", en: "Last 15 min", ja: "直近15分" },
+            { key: "last_30min", en: "Last 30 min", ja: "直近30分" },
+            { key: "last_1h", en: "Last 1 hour", ja: "直近1時間" },
           ].map((opt) => (
             <button
               key={opt.key}
@@ -71,57 +82,59 @@ export function Settings() {
                 if (!confirm(lang === "ja" ? `${opt.ja}のデータを削除しますか？` : `Delete data from ${opt.en}?`)) return;
                 try { await api.deleteTimelineRange(opt.key); } catch {}
               }}
-              className="btn-surface text-xs py-1 px-3 text-status-error"
+              className="btn btn-sm btn-secondary"
+              style={{ color: "var(--danger)", borderColor: "color-mix(in srgb, var(--danger) 50%, transparent)" }}
             >
               {lang === "ja" ? opt.ja : opt.en}
             </button>
           ))}
         </div>
-      </Sec>
+      </Section>
 
-      <Sec title={lang === "ja" ? "除外アプリ" : "Excluded Apps"}>
-        <p className="text-[11px] text-text-disabled mb-2">
-          {lang === "ja" ? "以下のアプリはキャプチャから自動除外されます" : "These apps are automatically excluded from capture"}
-        </p>
-        <div className="flex flex-wrap gap-1.5">
-          {["1Password", "Bitwarden", "KeePass", "LastPass", "Keychain Access", "Terminal", "iTerm2"].map((app) => (
-            <span key={app} className="text-[10px] px-2 py-0.5 rounded-full bg-surface-alt text-text-secondary">{app}</span>
-          ))}
-        </div>
-      </Sec>
-
-      <Sec title={t("settings.language", lang)}>
+      <Section title="LANGUAGE · 言語">
         <select className="input" value={s.language} onChange={(e) => u({ language: e.target.value })}>
-          <option value="ja">日本語</option>
           <option value="en">English</option>
+          <option value="ja">日本語</option>
         </select>
-      </Sec>
+      </Section>
 
-      <button onClick={save} disabled={saving} className="btn-gold w-full">
-        {saved ? t("settings.saved", lang) : saving ? t("settings.saving", lang) : t("settings.save", lang)}
+      <button onClick={save} disabled={saving} className="btn btn-primary" style={{ width: "100%", marginTop: 12 }}>
+        {saved ? "✓ Saved" : saving ? "Saving..." : lang === "ja" ? "保存" : "Save Settings"}
       </button>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
     </div>
   );
 }
 
-function Sec({ title, children }: { title: string; children: React.ReactNode }) {
-  return <div className="card space-y-3"><div className="section-label">{title}</div>{children}</div>;
+function Section({ title, children }: { title: string; children: React.ReactNode }) {
+  return (
+    <div style={{ marginBottom: 24 }}>
+      <div className="t-mono" style={{ marginBottom: 12 }}>{title}</div>
+      <div className="card" style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+        {children}
+      </div>
+    </div>
+  );
 }
 
 function Field({ label, value, onChange, type, placeholder }: { label: string; value: string; onChange: (v: string) => void; type?: string; placeholder?: string }) {
-  return <label className="block"><span className="text-xs text-text-secondary">{label}</span><input className="input mt-1" type={type ?? "text"} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} /></label>;
+  return (
+    <label style={{ display: "block" }}>
+      <div className="t-mono" style={{ fontSize: 10, marginBottom: 6 }}>{label}</div>
+      <input className="input" type={type ?? "text"} placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
+    </label>
+  );
 }
 
 function Toggle({ label, sub, checked, onChange }: { label: string; sub?: string; checked: boolean; onChange: (v: boolean) => void }) {
   return (
-    <button type="button" className="flex items-center gap-3 w-full text-left" onClick={() => onChange(!checked)}>
-      <div className={`w-8 h-[18px] rounded-full relative transition-colors shrink-0 ${checked ? "bg-gold" : "bg-border"}`}>
-        <div className={`absolute top-[2px] w-[14px] h-[14px] rounded-full bg-white transition-transform ${checked ? "translate-x-[16px]" : "translate-x-[2px]"}`} />
+    <div className="row" style={{ cursor: "pointer" }} onClick={() => onChange(!checked)}>
+      <div className={"switch " + (checked ? "on" : "")} />
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 13, fontWeight: 500 }}>{label}</div>
+        {sub && <div style={{ fontSize: 11, color: "var(--text-dim)", marginTop: 2 }}>{sub}</div>}
       </div>
-      <div>
-        <div className="text-sm font-medium">{label}</div>
-        {sub && <div className="text-[11px] text-text-disabled">{sub}</div>}
-      </div>
-    </button>
+    </div>
   );
 }

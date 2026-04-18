@@ -1,96 +1,339 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { Outlet, NavLink, useNavigate, useLocation } from "react-router-dom";
+import { Icon, Kamon } from "./components/Icon";
 import { SpotlightSearch } from "./components/SpotlightSearch";
-import { PrivateMode } from "./components/PrivateMode";
 import { api } from "./lib/tauri";
-import { LangContext, t, type Lang } from "./lib/i18n";
+import { LangContext, type Lang } from "./lib/i18n";
+
+type NavItem = { id: string; label: string; jp: string; icon: string; section: "main" | "workspace" | "system"; star?: boolean; count?: string };
+
+const NAV: NavItem[] = [
+  { id: "home",         label: "Home",         jp: "起動", icon: "dashboard", section: "main" },
+  { id: "memory",       label: "Memory",       jp: "記憶", icon: "memory",    section: "main", star: true },
+  { id: "chat",         label: "Chat",         jp: "対話", icon: "chat",      section: "main" },
+  { id: "agents",       label: "Agents",       jp: "家臣", icon: "agents",    section: "main", star: true },
+  { id: "work",         label: "Work",         jp: "任務", icon: "work",      section: "workspace" },
+  { id: "meetings",     label: "Meetings",     jp: "会議", icon: "calendar",  section: "workspace" },
+  { id: "capture",      label: "Capture",      jp: "捕捉", icon: "capture",   section: "system" },
+  { id: "integrations", label: "Integrations", jp: "接続", icon: "plug",      section: "system" },
+  { id: "settings",     label: "Settings",     jp: "設定", icon: "settings",  section: "system" },
+];
+
+const ROUTES: Record<string, string> = {
+  home: "/",
+  memory: "/timeline",
+  chat: "/chat",
+  agents: "/pipes",
+  work: "/search",
+  meetings: "/timeline",
+  capture: "/settings",
+  integrations: "/integrations",
+  settings: "/settings",
+};
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [ready, setReady] = useState(false);
-  const [captureActive, setCaptureActive] = useState(true);
-  const [lang, setLang] = useState<Lang>("ja");
+  const [lang, setLang] = useState<Lang>("en");
+  const [systemOpen, setSystemOpen] = useState(false);
+  const [userOpen, setUserOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
+  const [favorited, setFavorited] = useState(false);
+  const [stats, setStats] = useState<{ total_pages?: number }>({});
+  const sysBtnRef = useRef<HTMLDivElement>(null);
+  const userBtnRef = useRef<HTMLDivElement>(null);
+  const [sysAnchor, setSysAnchor] = useState({ left: 0, bottom: 0 });
+  const [userAnchor, setUserAnchor] = useState({ left: 0, bottom: 0, width: 220 });
 
   useEffect(() => {
     api.loadSettings().then((s) => {
       if (!s.onboarding_completed) navigate("/onboarding", { replace: true });
-      setLang((s.language as Lang) || "ja");
+      setLang((s.language as Lang) || "en");
       setReady(true);
     }).catch(() => setReady(true));
+    api.getBrainStats().then(setStats).catch(() => {});
   }, [navigate]);
 
-  // Re-read language on navigation (picks up Settings changes)
   useEffect(() => {
-    api.loadSettings().then((s) => setLang((s.language as Lang) || "ja")).catch(() => {});
+    api.loadSettings().then((s) => setLang((s.language as Lang) || "en")).catch(() => {});
   }, [location.pathname]);
 
   // Global shortcut: Cmd+K
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        setSpotlightOpen((p) => !p);
-      }
+      if ((e.metaKey || e.ctrlKey) && e.key === "k") { e.preventDefault(); setSpotlightOpen((p) => !p); }
       if (e.key === "Escape") setSpotlightOpen(false);
     };
     window.addEventListener("keydown", handler);
     return () => window.removeEventListener("keydown", handler);
   }, []);
 
-  if (!ready) return <div className="flex items-center justify-center h-screen bg-base" />;
+  // Apply language attribute
+  useEffect(() => {
+    document.body.setAttribute("data-lang", lang);
+  }, [lang]);
 
-  const nav = (to: string, label: string, icon: React.ReactNode) => (
-    <NavLink to={to} end={to === "/"} className={({ isActive }) => `nav-item ${isActive ? "nav-item-active" : ""}`}>
-      {icon}{label}
-    </NavLink>
-  );
+  const getActiveId = () => {
+    const path = location.pathname;
+    if (path === "/") return "home";
+    if (path.startsWith("/timeline")) return "memory";
+    if (path.startsWith("/chat")) return "chat";
+    if (path.startsWith("/pipes")) return "agents";
+    if (path.startsWith("/search")) return "work";
+    if (path.startsWith("/integrations")) return "integrations";
+    if (path.startsWith("/settings")) return "settings";
+    return "home";
+  };
+  const activeId = getActiveId();
+
+  const openSystem = () => {
+    const r = sysBtnRef.current?.getBoundingClientRect();
+    if (r) setSysAnchor({ left: r.right + 8, bottom: window.innerHeight - r.bottom });
+    setSystemOpen((v) => !v);
+  };
+
+  const openUser = () => {
+    const r = userBtnRef.current?.getBoundingClientRect();
+    if (r) setUserAnchor({ left: r.left, bottom: window.innerHeight - r.top + 8, width: r.width });
+    setUserOpen((v) => !v);
+  };
+
+  if (!ready) return <div style={{ height: "100vh", background: "var(--bg)" }} />;
+
+  const sections: { id: "main" | "workspace"; label: string; jp: string }[] = [
+    { id: "main",      label: "Core",      jp: "核" },
+    { id: "workspace", label: "Workspace", jp: "作業" },
+  ];
+  const systemItems = NAV.filter((n) => n.section === "system");
+  const count = (id: string): string | undefined => {
+    if (id === "memory" && stats.total_pages) return stats.total_pages.toLocaleString();
+    if (id === "integrations") return "8/20";
+    return undefined;
+  };
 
   return (
     <LangContext.Provider value={lang}>
-    <div className="flex h-screen bg-base">
-      <SpotlightSearch open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
+      <div className="app" data-screen-label={activeId}>
+        <SpotlightSearch open={spotlightOpen} onClose={() => setSpotlightOpen(false)} />
 
-      <aside className="w-[240px] shrink-0 bg-surface border-r border-border flex flex-col">
-        <div className="h-[36px] drag-region" />
-
-        <div className="px-4 pb-3">
-          <div className="flex items-center gap-2 cursor-pointer" onClick={() => navigate("/")}>
-            <span className="text-gold text-lg font-semibold tracking-wide">SHOGUN</span>
-            <span className="badge badge-gold text-[10px]">v0.1</span>
+        {/* Topbar */}
+        <div className="topbar">
+          <NavLink to="/" className="brand" style={{ textDecoration: "none", color: "inherit" }}>
+            <Kamon size={24} color="var(--text)" />
+            <div>
+              <div className="brand-title en-only">SHOGUN</div>
+              <div className="brand-jp jp">将軍</div>
+            </div>
+          </NavLink>
+          <button className="cmdk" onClick={() => setSpotlightOpen(true)}>
+            <Icon name="search" size={14} />
+            <span>Ask your memory or run a command…</span>
+            <span className="kbd">⌘K</span>
+          </button>
+          <div className="right">
+            <div className="page-actions">
+              <button className="page-action" title="Open in Hummingbird">
+                <Icon name="popout" size={15} />
+              </button>
+              <button className={"page-action" + (favorited ? " on" : "")} title="Favorite" onClick={() => setFavorited((v) => !v)}>
+                <Icon name="star" size={15} />
+              </button>
+              <button className="page-action" title="Share">
+                <Icon name="upload" size={15} />
+              </button>
+            </div>
           </div>
         </div>
 
-        <button onClick={() => setSpotlightOpen(true)}
-          className="mx-3 mb-3 flex items-center gap-2 px-2 py-1.5 rounded-md bg-input-bg border border-border-subtle text-text-disabled text-xs hover:border-border hover:text-text-secondary transition-all">
-          <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" /></svg>
-          <span className="flex-1 text-left">{t("spotlight.placeholder", lang)}</span>
-          <kbd className="text-[10px] bg-surface-alt px-1 py-0.5 rounded">⌘K</kbd>
-        </button>
+        {/* Sidebar */}
+        <div className="sidebar">
+          {sections.map((sec) => (
+            <div key={sec.id}>
+              <div className="section-label">
+                <span className="en-only">{sec.label}</span>
+                <span className="en-only"> · </span>
+                <span className="jp">{sec.jp}</span>
+              </div>
+              {NAV.filter((n) => n.section === sec.id).map((n) => (
+                <div
+                  key={n.id}
+                  className={"nav-item " + (activeId === n.id ? "active" : "")}
+                  onClick={() => navigate(ROUTES[n.id] || "/")}
+                >
+                  <Icon name={n.icon} size={16} />
+                  <span className="nav-label en-only">{n.label}</span>
+                  {n.star && <span className="gold" style={{ fontSize: 8, marginLeft: -4 }}>★</span>}
+                  <span className="jp">{n.jp}</span>
+                  {count(n.id) && <span className="count">{count(n.id)}</span>}
+                </div>
+              ))}
+            </div>
+          ))}
 
-        <nav className="flex-1 px-3 space-y-0.5" role="navigation">
-          <div className="section-label px-2 pt-2 pb-1">Main</div>
-          {nav("/", t("nav.dashboard", lang), <I d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6" />)}
-          {nav("/chat", t("nav.ask", lang), <I d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z" />)}
-          {nav("/search", t("nav.search", lang), <I d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />)}
-          {nav("/timeline", lang === "ja" ? "タイムライン" : "Timeline", <I d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />)}
-          {nav("/pipes", "Pipes", <I d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />)}
-          {nav("/integrations", lang === "ja" ? "連携" : "Integrations", <I d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101" />)}
+          {/* System button */}
+          <div style={{ marginTop: 12 }}>
+            <div
+              ref={sysBtnRef}
+              className={"nav-item " + (systemItems.some((s) => s.id === activeId) ? "active" : "")}
+              onClick={openSystem}
+            >
+              <Icon name="settings" size={16} />
+              <span className="nav-label en-only">System</span>
+              <span className="jp">系統</span>
+              <span className="count">
+                <Icon name={systemOpen ? "chevronDown" : "chevronRight"} size={10} />
+              </span>
+            </div>
+          </div>
+          <div style={{ flex: 1 }} />
 
-          <div className="section-label px-2 pt-4 pb-1">System</div>
-          {nav("/settings", t("nav.settings", lang), <I d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.066 2.573c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.573 1.066c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.066-2.573c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z M15 12a3 3 0 11-6 0 3 3 0 016 0z" />)}
-        </nav>
+          {/* User cluster */}
+          <div className="user-cluster">
+            <div className="user-row">
+              <span className="capturing-pill">
+                <span className="pulse" />
+                <span className="en-only">CAPTURING</span>
+                <span className="jp" style={{ marginLeft: 4 }}>記録中</span>
+              </span>
+            </div>
+            <div ref={userBtnRef} className="user-row user-pill" onClick={openUser}>
+              <div className="avatar" style={{ width: 26, height: 26, fontSize: 11 }}>K</div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontSize: 12, fontWeight: 500, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                  Kazu Tano
+                </div>
+                <div className="t-mono" style={{ fontSize: 9, color: "var(--text-dim)" }}>LOCAL · PRO</div>
+              </div>
+              <Icon name={userOpen ? "chevronDown" : "chevronRight"} size={11} className="dim" />
+            </div>
+          </div>
+        </div>
 
-        <PrivateMode isActive={captureActive} onToggle={setCaptureActive} />
-      </aside>
+        {/* Content */}
+        <div className="content">
+          <Outlet />
+        </div>
 
-      <main className="flex-1 overflow-y-auto"><Outlet /></main>
-    </div>
+        {/* System floating menu */}
+        {systemOpen && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 80 }} onClick={() => setSystemOpen(false)} />
+            <div className="system-float" style={{ left: sysAnchor.left, bottom: sysAnchor.bottom, zIndex: 90 }}>
+              <div className="t-mono" style={{ padding: "12px 14px 8px", color: "var(--text-dim)", borderBottom: "1px solid var(--border)", marginBottom: 4 }}>
+                <span className="en-only">SYSTEM</span>
+                <span className="en-only" style={{ margin: "0 6px" }}>·</span>
+                <span className="jp">系統</span>
+              </div>
+              {systemItems.map((n) => (
+                <div
+                  key={n.id}
+                  className={"nav-item " + (activeId === n.id ? "active" : "")}
+                  onClick={() => { navigate(ROUTES[n.id] || "/"); setSystemOpen(false); }}
+                  style={{ margin: "0 6px" }}
+                >
+                  <Icon name={n.icon} size={16} />
+                  <span className="nav-label en-only">{n.label}</span>
+                  <span className="jp">{n.jp}</span>
+                </div>
+              ))}
+              <div style={{ borderTop: "1px solid var(--border)", padding: "10px 14px", display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+                <Kamon size={12} color="var(--gold)" />
+                <span className="t-mono" style={{ fontSize: 10, color: "var(--text-dim)" }}>v0.4.1 · LOCAL</span>
+              </div>
+            </div>
+          </>
+        )}
+
+        {/* User floating menu */}
+        {userOpen && (
+          <>
+            <div style={{ position: "fixed", inset: 0, zIndex: 80 }} onClick={() => setUserOpen(false)} />
+            <div className="user-float" style={{ left: userAnchor.left, bottom: userAnchor.bottom, width: userAnchor.width, zIndex: 90 }}>
+              <div className="user-float-head">
+                <div style={{ fontSize: 12, color: "var(--text-dim)" }}>kazu@shogun.local</div>
+              </div>
+              <div className="user-float-section">
+                <div className="user-float-row" onClick={() => { navigate("/settings"); setUserOpen(false); }}>
+                  <Icon name="settings" size={13} /><span className="en-only">Settings</span><span className="jp">設定</span>
+                  <span style={{ flex: 1 }} />
+                  <span className="kbd-mini">⌘,</span>
+                </div>
+                <div className="user-float-row">
+                  <Icon name="arrowUpRight" size={13} /><span className="en-only">Upgrade Plan</span><span className="jp">昇格</span>
+                </div>
+                <div className="user-float-row">
+                  <Icon name="download" size={13} /><span className="en-only">Download Mobile App</span><span className="jp">携帯</span>
+                </div>
+              </div>
+              <div className="user-float-section" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="user-float-row gold">
+                  <Icon name="gift" size={13} /><span className="en-only">Get 2 Months Free</span><span className="jp">贈</span>
+                </div>
+              </div>
+              <div className="user-float-section" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="user-float-row" style={{ color: "var(--text-mute)" }}>
+                  <Icon name="logout" size={13} /><span className="en-only">Logout</span><span className="jp">退出</span>
+                </div>
+              </div>
+              <div className="user-float-profile">
+                <div className="avatar">T</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ fontSize: 12, fontWeight: 500 }}>Toru Tano</div>
+                  <div style={{ fontSize: 10, color: "var(--text-dim)" }}>Pro · Local</div>
+                </div>
+              </div>
+            </div>
+          </>
+        )}
+
+        <style>{`
+          body[data-lang=en] .jp, body[data-lang=en] .brand-jp { display:none !important; }
+          body[data-lang=ja] .en-only { display:none !important; }
+
+          .system-float {
+            position:fixed; width:240px;
+            background:var(--surface); border:1px solid var(--border-hi);
+            border-radius:var(--radius-md);
+            box-shadow:0 18px 40px -8px rgba(0,0,0,0.6), 0 2px 6px rgba(0,0,0,0.3);
+            padding:4px 0;
+            animation: sysFloatIn 140ms var(--ease-out);
+          }
+          @keyframes sysFloatIn {
+            from { opacity:0; transform: translateX(-4px) translateY(2px); }
+            to { opacity:1; transform: translateX(0) translateY(0); }
+          }
+
+          .user-float {
+            position:fixed;
+            background:var(--surface); border:1px solid var(--border-hi);
+            border-radius:var(--radius-lg);
+            box-shadow:0 24px 48px -12px rgba(0,0,0,0.6);
+            padding:4px 0; overflow:hidden; min-width:220px;
+          }
+          .user-float-head { padding:10px 12px 8px; border-bottom:1px solid var(--border); }
+          .user-float-section { padding:4px; }
+          .user-float-row {
+            display:flex; align-items:center; gap:10px;
+            padding:7px 10px; border-radius:var(--radius-sm);
+            color:var(--text); font-size:12.5px; cursor:pointer;
+          }
+          .user-float-row:hover { background:var(--surface-2); }
+          .user-float-row.gold { color:var(--gold); }
+          .user-float-row .jp { font-family:var(--font-jp); font-weight:300; font-size:10.5px; color:var(--text-dim); margin-left:-4px; }
+          .user-float-row .kbd-mini { font-family:var(--font-mono); font-size:10px; color:var(--text-dim); }
+          .user-float-profile {
+            display:flex; align-items:center; gap:10px;
+            padding:10px 12px; border-top:1px solid var(--border); background:var(--bg);
+          }
+          .user-float-profile .avatar {
+            width:26px; height:26px; border-radius:50%;
+            background:var(--surface-2); border:1px solid var(--border);
+            display:flex; align-items:center; justify-content:center;
+            font-size:11px; font-weight:500; color:var(--text);
+          }
+        `}</style>
+      </div>
     </LangContext.Provider>
   );
-}
-
-function I({ d }: { d: string }) {
-  return <svg className="w-4 h-4 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d={d} /></svg>;
 }
