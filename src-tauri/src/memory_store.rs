@@ -57,19 +57,76 @@ fn default_catalog() -> Value {
   })
 }
 
+fn save_catalog(doc: &Value) -> Result<(), String> {
+  fs::write(
+    memory_path()?,
+    serde_json::to_string_pretty(doc).map_err(|e| e.to_string())?,
+  )
+  .map_err(|e| e.to_string())
+}
+
 fn load_catalog() -> Result<Value, String> {
   let path = memory_path()?;
   if !path.exists() {
     let doc = default_catalog();
-    fs::write(
-      &path,
-      serde_json::to_string_pretty(&doc).map_err(|e| e.to_string())?,
-    )
-    .map_err(|e| e.to_string())?;
+    save_catalog(&doc)?;
     return Ok(doc);
   }
   let raw = fs::read_to_string(&path).map_err(|e| e.to_string())?;
   serde_json::from_str(&raw).map_err(|e| e.to_string())
+}
+
+fn now_ms() -> u64 {
+  use std::time::{SystemTime, UNIX_EPOCH};
+  SystemTime::now()
+    .duration_since(UNIX_EPOCH)
+    .map(|d| d.as_millis() as u64)
+    .unwrap_or(0)
+}
+
+/// Append a memory item. Payload: `{ title, snippet?, kinds?, source? }` (WRITE).
+pub fn ingest(payload: &Value) -> Result<Value, String> {
+  let title = payload
+    .get("title")
+    .and_then(|t| t.as_str())
+    .ok_or_else(|| "title is required".to_string())?;
+  let snippet = payload
+    .get("snippet")
+    .and_then(|t| t.as_str())
+    .unwrap_or("");
+  let source = payload
+    .get("source")
+    .and_then(|t| t.as_str())
+    .unwrap_or("capture");
+  let kinds = payload
+    .get("kinds")
+    .cloned()
+    .unwrap_or_else(|| json!(["screen"]));
+
+  let id = format!("m_{}", now_ms());
+  let created = now_ms();
+  let item = json!({
+    "id": id,
+    "title": title,
+    "snippet": snippet,
+    "kinds": kinds,
+    "source": source,
+    "created_at": created,
+  });
+
+  let mut doc = load_catalog()?;
+  let arr = doc
+    .get_mut("items")
+    .and_then(|i| i.as_array_mut())
+    .ok_or_else(|| "memory catalog missing items array".to_string())?;
+  arr.insert(0, item.clone());
+  save_catalog(&doc)?;
+
+  Ok(json!({
+    "item": item,
+    "echo": payload,
+    "stub": false,
+  }))
 }
 
 fn item_kinds(item: &Value) -> Vec<String> {

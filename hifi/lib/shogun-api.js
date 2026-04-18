@@ -30,6 +30,7 @@
       },
       memorySearch: (input) => call("shogun_memory_search", input, READ),
       memoryFetch: (input) => call("shogun_memory_fetch", input, READ),
+      memoryIngest: (input) => call("shogun_memory_ingest", input, WRITE),
       entityQuery: (input) => call("shogun_entity_query", input, READ),
       briefGet: (input) => call("shogun_brief_get", input, READ),
       draftCreate: (input) => call("shogun_draft", input, WRITE),

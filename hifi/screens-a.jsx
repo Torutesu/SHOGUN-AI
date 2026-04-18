@@ -1,9 +1,66 @@
 /* global Icon, Kamon, React */
-const { useState } = React;
+const { useState, useEffect, useMemo } = React;
 
 function runRuntimeActionA(key, payload, options) {
   if (!window.SHOGUN_RUNTIME || !window.SHOGUN_RUNTIME.executeAction) return Promise.resolve({ ok:false });
   return window.SHOGUN_RUNTIME.executeAction(key, payload || {}, options || {});
+}
+
+const MEMORY_DEMO_EVENTS = [
+  {t:'07:12', h:7.2,  src:'agent', title:'Morning brief assembled', tag:'auto'},
+  {t:'07:58', h:7.97, src:'mail',  title:'Inbox open · 24 unread'},
+  {t:'08:41', h:8.68, src:'note',  title:'Journal entry · 220w'},
+  {t:'09:04', h:9.07, src:'chat',  title:'Terminal session · rust refactor'},
+  {t:'09:22', h:9.37, src:'code',  title:'Commit: refactor/auth-layer'},
+  {t:'09:48', h:9.8,  src:'chat',  title:'SHOGUN · tool scoping'},
+  {t:'10:05', h:10.08,src:'mail',  title:'Thread · compliance review'},
+  {t:'10:30', h:10.5, src:'meet',  title:'Grop使 · product sync', dur:'25m'},
+  {t:'11:02', h:11.03,src:'note',  title:'Whiteboard photo captured'},
+  {t:'11:37', h:11.6, src:'note',  title:'Notion · 100x user framework'},
+  {t:'12:10', h:12.17,src:'chat',  title:'Lunch log · voice memo'},
+  {t:'12:44', h:12.73,src:'agent', title:'Afternoon brief', tag:'auto'},
+  {t:'13:20', h:13.33,src:'meet',  title:'All PJ · Matt + Tano', dur:'42m', big:true},
+  {t:'14:02', h:14.03,src:'chat',  title:'Revenue-cat · pricing tiers', big:true},
+  {t:'14:28', h:14.47,src:'note',  title:'Decision: tier at $17/$62'},
+  {t:'15:06', h:15.1, src:'code',  title:'PR opened · pricing/api'},
+  {t:'15:48', h:15.8, src:'mail',  title:'Elevenlabs intro thread'},
+  {t:'16:22', h:16.37,src:'chat',  title:'SHOGUN · memory schema'},
+  {t:'17:00', h:17,   src:'agent', title:'Inbox triage · 12 emails', tag:'auto'},
+  {t:'17:44', h:17.73,src:'meet',  title:'1:1 · Jacob', dur:'28m'},
+  {t:'18:30', h:18.5, src:'note',  title:'Walking thoughts · voice'},
+  {t:'19:42', h:19.7, src:'agent', title:'Evening digest ready', tag:'auto'},
+  {t:'20:18', h:20.3, src:'chat',  title:'Reading session · annotated'},
+];
+
+function memoryHitToRiverEvent(hit) {
+  const ts = hit.created_at != null ? Number(hit.created_at) : Date.now();
+  const d = new Date(ts);
+  const hRaw = d.getHours() + d.getMinutes() / 60;
+  const h = Math.max(6, Math.min(22, hRaw));
+  const t = d.toTimeString().slice(0, 5);
+  const rawSrc = String(hit.source || '').toLowerCase();
+  let src = 'note';
+  if (rawSrc === 'meetings' || (Array.isArray(hit.kinds) && hit.kinds.indexOf('audio') >= 0)) src = 'meet';
+  else if (rawSrc === 'chat') src = 'chat';
+  else if (rawSrc === 'work') src = 'code';
+  return {
+    t,
+    h,
+    src,
+    title: hit.title || 'Memory',
+    snippet: hit.snippet || '',
+    memoryId: hit.id,
+    big: false,
+  };
+}
+
+function mergeIndexHitsIntoRiver(res, setEvents, setScrubIdx) {
+  if (!res || !res.ok || !res.data) return;
+  const hits = res.data.hits;
+  if (!Array.isArray(hits) || hits.length === 0) return;
+  const mapped = hits.map(memoryHitToRiverEvent);
+  setEvents([].concat(mapped, MEMORY_DEMO_EVENTS));
+  setScrubIdx(0);
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
@@ -51,42 +108,35 @@ function ScreenMemory() {
   const [view, setView] = useState('river');
   const [zoom, setZoom] = useState('week'); // 'day' | 'week' | 'month' | 'year'
   const [periodIdx, setPeriodIdx] = useState(0); // offset within current zoom
-  const events = [
-    {t:'07:12', h:7.2,  src:'agent', title:'Morning brief assembled', tag:'auto'},
-    {t:'07:58', h:7.97, src:'mail',  title:'Inbox open · 24 unread'},
-    {t:'08:41', h:8.68, src:'note',  title:'Journal entry · 220w'},
-    {t:'09:04', h:9.07, src:'chat',  title:'Terminal session · rust refactor'},
-    {t:'09:22', h:9.37, src:'code',  title:'Commit: refactor/auth-layer'},
-    {t:'09:48', h:9.8,  src:'chat',  title:'SHOGUN · tool scoping'},
-    {t:'10:05', h:10.08,src:'mail',  title:'Thread · compliance review'},
-    {t:'10:30', h:10.5, src:'meet',  title:'Grop使 · product sync', dur:'25m'},
-    {t:'11:02', h:11.03,src:'note',  title:'Whiteboard photo captured'},
-    {t:'11:37', h:11.6, src:'note',  title:'Notion · 100x user framework'},
-    {t:'12:10', h:12.17,src:'chat',  title:'Lunch log · voice memo'},
-    {t:'12:44', h:12.73,src:'agent', title:'Afternoon brief', tag:'auto'},
-    {t:'13:20', h:13.33,src:'meet',  title:'All PJ · Matt + Tano', dur:'42m', big:true},
-    {t:'14:02', h:14.03,src:'chat',  title:'Revenue-cat · pricing tiers', big:true},
-    {t:'14:28', h:14.47,src:'note',  title:'Decision: tier at $17/$62'},
-    {t:'15:06', h:15.1, src:'code',  title:'PR opened · pricing/api'},
-    {t:'15:48', h:15.8, src:'mail',  title:'Elevenlabs intro thread'},
-    {t:'16:22', h:16.37,src:'chat',  title:'SHOGUN · memory schema'},
-    {t:'17:00', h:17,   src:'agent', title:'Inbox triage · 12 emails', tag:'auto'},
-    {t:'17:44', h:17.73,src:'meet',  title:'1:1 · Jacob', dur:'28m'},
-    {t:'18:30', h:18.5, src:'note',  title:'Walking thoughts · voice'},
-    {t:'19:42', h:19.7, src:'agent', title:'Evening digest ready', tag:'auto'},
-    {t:'20:18', h:20.3, src:'chat',  title:'Reading session · annotated'},
-  ];
-  // Scrubber state — index into events
-  const [scrubIdx, setScrubIdx] = useState(13); // default to Rev-cat · pricing
-  const scrubbed = events[scrubIdx];
-  // Density mini-histogram (5-min bins across 6→22)
-  const binCount = 64;
-  const bins = new Array(binCount).fill(0);
-  events.forEach(e => {
-    const p = Math.max(0, Math.min(1, (e.h-6)/(22-6)));
-    bins[Math.floor(p * (binCount-1))] += e.big?2:1;
-  });
-  const maxBin = Math.max(...bins, 1);
+  const [events, setEvents] = useState(() => MEMORY_DEMO_EVENTS.slice());
+  const [scrubIdx, setScrubIdx] = useState(13);
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const res = await runRuntimeActionA('memory.search', { query: '', limit: 40 }, { silentError: true });
+      if (cancelled) return;
+      mergeIndexHitsIntoRiver(res, setEvents, setScrubIdx);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  useEffect(() => {
+    setScrubIdx((i) => {
+      if (events.length === 0) return 0;
+      return Math.min(i, events.length - 1);
+    });
+  }, [events.length]);
+  const { bins, maxBin } = useMemo(() => {
+    const binCount = 64;
+    const b = new Array(binCount).fill(0);
+    events.forEach((e) => {
+      const p = Math.max(0, Math.min(1, (e.h - 6) / (22 - 6)));
+      b[Math.floor(p * (binCount - 1))] += e.big ? 2 : 1;
+    });
+    return { bins: b, maxBin: Math.max(...b, 1) };
+  }, [events]);
+  const scrubbed = events.length
+    ? events[Math.min(scrubIdx, events.length - 1)]
+    : { t: '--', h: 12, src: 'note', title: 'No memories', snippet: '' };
   const srcIcon = s => s==='chat'?'chat':s==='meet'?'calendar':s==='note'?'note':s==='mail'?'mail':s==='agent'?'bot':s==='code'?'terminal':'file';
   const srcLabel = s => ({chat:'Conversation',meet:'Meeting',note:'Note',mail:'Email',agent:'Agent run',code:'Code'})[s]||'Event';
 
@@ -104,7 +154,17 @@ function ScreenMemory() {
             <button key={k} onClick={()=>setView(k)} className="btn btn-sm" style={{borderRadius:0, border:0, background: view===k?'var(--surface-2)':'transparent', color: view===k?'var(--gold)':'var(--text-mute)'}}>{l}</button>
           ))}
         </div>
-        <button className="btn btn-sm btn-secondary" onClick={()=>runRuntimeActionA('memory.search', { query:'filters timeline', kinds:['screen','audio','input'], limit:50 }, { successMessage:'Filters applied' })}><Icon name="filter" size={14}/>Filters · 3</button>
+        <div className="row" style={{gap:8}}>
+          <button className="btn btn-sm btn-secondary" onClick={async ()=>{
+            const res = await runRuntimeActionA('memory.search', { query:'filters timeline', kinds:['screen','audio','input'], limit:50 }, { successMessage:'Filters applied' });
+            mergeIndexHitsIntoRiver(res, setEvents, setScrubIdx);
+          }}><Icon name="filter" size={14}/>Filters · 3</button>
+          <button className="btn btn-sm btn-ghost" onClick={async ()=>{
+            await runRuntimeActionA('memory.ingest', { title:'Quick capture · '+new Date().toLocaleTimeString(), snippet:'Saved from Memory screen.', source:'capture', kinds:['input'] }, { successMessage:'Memory indexed' });
+            const r = await runRuntimeActionA('memory.search', { query:'', limit:40 }, { silentError:true });
+            mergeIndexHitsIntoRiver(r, setEvents, setScrubIdx);
+          }}>Save test</button>
+        </div>
       </div>
 
       {/* Time-range nav — zoom aware (Day/Week/Month/Year) */}
@@ -285,6 +345,7 @@ function ScreenMemory() {
 
               <div className="row" style={{gap:6, flexWrap:'wrap', marginTop:2}}>
                 {scrubbed.tag==='auto' && <span className="label label-gold"><Icon name="bot" size={10} style={{marginRight:4}}/>auto-captured</span>}
+                {scrubbed.memoryId && <span className="label">index</span>}
                 {scrubbed.dur && <span className="label"><Icon name="clock" size={10} style={{marginRight:4}}/>{scrubbed.dur}</span>}
                 <span className="label">#pricing</span>
                 <span className="label">Matt</span>
@@ -292,7 +353,7 @@ function ScreenMemory() {
               </div>
 
               <div style={{fontSize:13, lineHeight:1.65, color:'var(--text-mute)', marginTop:4}}>
-                Jumped into Revenue-cat. Locked on a three-tier structure: Plus at $17, Pro at $62, and a founder plan. Matt pushed back on the middle tier — we softened it.
+                {scrubbed.snippet || 'Jumped into Revenue-cat. Locked on a three-tier structure: Plus at $17, Pro at $62, and a founder plan. Matt pushed back on the middle tier — we softened it.'}
               </div>
 
               <div className="t-mono" style={{fontSize:10, marginTop:6}}>3 MEMORIES WRITTEN · 2 ENTITIES LINKED</div>

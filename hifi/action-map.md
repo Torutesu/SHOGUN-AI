@@ -30,6 +30,7 @@ UIボタンと ActionRegistry / Runtime の対応表。
 
 - Home CTA buttons -> `draft.create` / `schedule.create` / `settings.save`
 - Memory filter button -> `memory.search`
+- Memory `Save test` -> `memory.ingest` then `memory.search` refresh
 - River actions (`Open in Chat`, `Open source`) -> `memory.search`
 - River more menu -> `settings.save(section=memory)`
 
@@ -73,6 +74,7 @@ UIボタンと ActionRegistry / Runtime の対応表。
 - `data.delete_all`
 - `account.delete`
 - `memory.search`
+- `memory.ingest`
 - `brief.get`
 - `stats.get`
 - `draft.create`

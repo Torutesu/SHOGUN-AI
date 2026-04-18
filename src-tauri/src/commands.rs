@@ -24,6 +24,11 @@ pub fn shogun_memory_fetch(payload: Value) -> Result<Value, String> {
 }
 
 #[tauri::command]
+pub fn shogun_memory_ingest(payload: Value) -> Result<Value, String> {
+  memory_store::ingest(&payload)
+}
+
+#[tauri::command]
 pub fn shogun_entity_query(payload: Value) -> Result<Value, String> {
   Ok(json!({ "entities": [], "echo": payload, "stub": true }))
 }
