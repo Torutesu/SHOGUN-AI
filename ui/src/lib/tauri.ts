@@ -63,19 +63,41 @@ const BRIDGE_URL = "http://localhost:3847";
 
 // Map command names to HTTP endpoints
 const CMD_TO_PATH: Record<string, { method: string; path: string }> = {
-  get_brain_stats: { method: "GET", path: "/api/stats" },
-  get_health: { method: "GET", path: "/api/health" },
-  search_memory: { method: "POST", path: "/api/search" },
-  hybrid_search: { method: "POST", path: "/api/search" },
-  get_page: { method: "POST", path: "/api/page" },
-  put_page: { method: "POST", path: "/api/page/put" },
-  delete_page: { method: "POST", path: "/api/page/delete" },
-  list_pages: { method: "GET", path: "/api/pages" },
-  chat: { method: "POST", path: "/api/chat" },
-  run_dream_cycle: { method: "POST", path: "/api/dream" },
-  get_timeline_range: { method: "POST", path: "/api/timeline" },
-  load_settings: { method: "GET", path: "/api/settings/load" },
-  save_settings: { method: "POST", path: "/api/settings/save" },
+  get_brain_stats:       { method: "GET",  path: "/api/stats" },
+  get_health:            { method: "GET",  path: "/api/health" },
+  search_memory:         { method: "POST", path: "/api/search" },
+  hybrid_search:         { method: "POST", path: "/api/search" },
+  get_page:              { method: "POST", path: "/api/page" },
+  put_page:              { method: "POST", path: "/api/page/put" },
+  delete_page:           { method: "POST", path: "/api/page/delete" },
+  list_pages:            { method: "GET",  path: "/api/pages" },
+  chat:                  { method: "POST", path: "/api/chat" },
+  run_dream_cycle:       { method: "POST", path: "/api/dream" },
+  get_timeline_range:    { method: "POST", path: "/api/timeline" },
+  get_today_timeline:    { method: "GET",  path: "/api/timeline/today" },
+  delete_timeline_range: { method: "POST", path: "/api/timeline/delete" },
+  load_settings:         { method: "GET",  path: "/api/settings/load" },
+  save_settings:         { method: "POST", path: "/api/settings/save" },
+  // Capture
+  capture_status:        { method: "GET",  path: "/api/capture/status" },
+  pause_capture:         { method: "POST", path: "/api/capture/pause" },
+  resume_capture:        { method: "POST", path: "/api/capture/resume" },
+  // Pipes
+  list_pipes:            { method: "GET",  path: "/api/pipes" },
+  set_pipe_enabled:      { method: "POST", path: "/api/pipes/enable" },
+  run_pipe:              { method: "POST", path: "/api/pipes/run" },
+  // Integrations
+  ingest_slack:          { method: "POST", path: "/api/ingest/slack" },
+  ingest_github:         { method: "POST", path: "/api/ingest/github" },
+  ingest_notion:         { method: "POST", path: "/api/ingest/notion" },
+  ingest_linear:         { method: "POST", path: "/api/ingest/linear" },
+  ingest_gmail:          { method: "POST", path: "/api/ingest/gmail" },
+  ingest_calendar:       { method: "POST", path: "/api/ingest/calendar" },
+  // Export / Import
+  export_brain:          { method: "GET",  path: "/api/export" },
+  import_brain:          { method: "POST", path: "/api/import" },
+  // Briefing
+  generate_briefing:     { method: "POST", path: "/api/briefing" },
 };
 
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -149,10 +171,7 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
     run_dream_cycle: { synced: 3, skipped: 39, health: { embed_coverage: 0.82 } },
     export_brain: { version: 1, pages: [], links: [] },
     import_brain: { imported: 0, skipped: 0, links_created: 0 },
-    start_capture: { started: true },
     chat: { content: "Based on your memory, here is what I found...", citations: [{ slug: "people/demo-user", title: "Demo User", snippet: "A demo user for testing." }] },
-    start_ocr_capture: { started: true },
-    start_audio_capture: { started: true },
     load_settings: {
       openai_api_key: null,
       anthropic_api_key: null,
@@ -161,13 +180,16 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
       encryption_enabled: false,
       dream_cycle_enabled: true,
       language: "ja",
-      onboarding_completed: true, // true in dev mode to avoid redirect loop
+      onboarding_completed: true,
     },
-    save_settings: undefined,
+    save_settings: { saved: true },
     put_page: { slug: "test/page", title: "Test", page_type: "concept", compiled_truth: "", timeline: "", tags: [], updated_at: new Date().toISOString() },
     delete_page: true,
+    // Capture
+    capture_status: { active: true },
     pause_capture: { paused: true },
     resume_capture: { resumed: true },
+    // Timeline
     get_timeline_range: [
       { date: new Date().toISOString().slice(0, 10), entries: [
         { content: "[Chrome] SHOGUN documentation", source: "window_capture", created_at: new Date().toISOString() },
@@ -176,6 +198,7 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
     ],
     get_today_timeline: { date: new Date().toISOString().slice(0, 10), entries: [], pageSlug: `sessions/${new Date().toISOString().slice(0, 10)}`, totalEntries: 0, appBreakdown: {}, sources: {} },
     delete_timeline_range: { deleted: 0 },
+    // Pipes
     list_pipes: { pipes: [
       { id: "builtin-0", name: "Weekly Digest", description: "Compile weekly activity digest every Friday", trigger: { type: "schedule", cron: "0 18 * * 5", description: "Every Friday at 18:00" }, enabled: false },
       { id: "builtin-1", name: "Meeting Action Items", description: "Extract action items after each meeting", trigger: { type: "event", event: "meeting_ended" }, enabled: true },
@@ -184,11 +207,21 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
     ] },
     set_pipe_enabled: { id: "", enabled: true },
     run_pipe: { result: "Pipe executed successfully. Generated summary of 5 key events." },
+    // Integrations
+    ingest_slack: { messages: 0, pages_created: 0 },
+    ingest_github: { issues: 0, pages_created: 0, commits: 0 },
+    ingest_notion: { pages: 0, created: 0 },
+    ingest_linear: { issues: 0, created: 0 },
+    ingest_gmail: { emails: 0, pages_created: 0 },
+    ingest_calendar: { events: 0, pages_created: 0 },
+    // Briefing
+    generate_briefing: { briefing: "No data available yet." },
   };
   return (mocks[cmd] ?? null) as T;
 }
 
 export const api = {
+  // Memory core
   getBrainStats: () => invoke<BrainStats>("get_brain_stats"),
   searchMemory: (query: string, limit?: number) =>
     invoke<SearchResult[]>("search_memory", { query, limit }),
@@ -207,29 +240,49 @@ export const api = {
     invoke<PageListItem[]>("list_pages", options ?? {}),
   getHealth: () => invoke<HealthReport>("get_health"),
   runDreamCycle: () => invoke<unknown>("run_dream_cycle"),
-  exportBrain: () => invoke<unknown>("export_brain"),
-  importBrain: (data: unknown) => invoke<unknown>("import_brain", { data }),
-  startCapture: (intervalMs?: number) =>
-    invoke<unknown>("start_capture", { interval_ms: intervalMs }),
   chat: (message: string) => invoke<unknown>("chat", { message }),
-  pauseCapture: () => invoke<unknown>("pause_capture"),
-  resumeCapture: () => invoke<unknown>("resume_capture"),
-  startOCRCapture: () => invoke<unknown>("start_ocr_capture"),
-  startAudioCapture: () => invoke<unknown>("start_audio_capture"),
+
   // Timeline
   getTimelineRange: (startDate: string, endDate: string, limit?: number) =>
     invoke<unknown>("get_timeline_range", { start_date: startDate, end_date: endDate, limit }),
   getTodayTimeline: () => invoke<unknown>("get_today_timeline"),
   deleteTimelineRange: (range: string) => invoke<unknown>("delete_timeline_range", { range }),
 
-  // Pipes
+  // Capture control
+  getCaptureStatus: () => invoke<{ active: boolean }>("capture_status"),
+  pauseCapture: () => invoke<{ paused: boolean }>("pause_capture"),
+  resumeCapture: () => invoke<{ resumed: boolean }>("resume_capture"),
+
+  // Pipes (Agents)
   listPipes: () => invoke<unknown>("list_pipes"),
   setPipeEnabled: (id: string, enabled: boolean) => invoke<unknown>("set_pipe_enabled", { id, enabled }),
   runPipe: (id: string) => invoke<unknown>("run_pipe", { id }),
 
+  // Integrations
+  ingestSlack: (token: string, channelId: string) =>
+    invoke<unknown>("ingest_slack", { token, channel_id: channelId }),
+  ingestGitHub: (token: string, owner: string, repo: string) =>
+    invoke<unknown>("ingest_github", { token, owner, repo }),
+  ingestNotion: (token: string) =>
+    invoke<unknown>("ingest_notion", { token }),
+  ingestLinear: (apiKey: string) =>
+    invoke<unknown>("ingest_linear", { api_key: apiKey }),
+  ingestGmail: (params: { client_id: string; client_secret: string; access_token: string; refresh_token: string }) =>
+    invoke<unknown>("ingest_gmail", params),
+  ingestCalendar: (token: string) =>
+    invoke<unknown>("ingest_calendar", { token }),
+
+  // Settings
   saveSettings: (settings: AppSettings) =>
     invoke<void>("save_settings", { settings }),
   loadSettings: () => invoke<AppSettings>("load_settings"),
+
+  // Export / Import
+  exportBrain: () => invoke<unknown>("export_brain"),
+  importBrain: (data: unknown) => invoke<unknown>("import_brain", { data }),
+
+  // Briefing
+  generateBriefing: (type?: string) => invoke<unknown>("generate_briefing", { type }),
 };
 
 export type { BrainStats, SearchResult, PageData, HealthReport, AppSettings, PageListItem };

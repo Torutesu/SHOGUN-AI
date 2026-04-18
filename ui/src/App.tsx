@@ -40,6 +40,7 @@ export default function App() {
   const [userOpen, setUserOpen] = useState(false);
   const [spotlightOpen, setSpotlightOpen] = useState(false);
   const [favorited, setFavorited] = useState(false);
+  const [captureActive, setCaptureActive] = useState(true);
   const [stats, setStats] = useState<{ total_pages?: number }>({});
   const sysBtnRef = useRef<HTMLDivElement>(null);
   const userBtnRef = useRef<HTMLDivElement>(null);
@@ -53,6 +54,7 @@ export default function App() {
       setReady(true);
     }).catch(() => setReady(true));
     api.getBrainStats().then(setStats).catch(() => {});
+    api.getCaptureStatus().then((s) => setCaptureActive(s.active)).catch(() => {});
   }, [navigate]);
 
   useEffect(() => {
@@ -191,10 +193,34 @@ export default function App() {
           {/* User cluster */}
           <div className="user-cluster">
             <div className="user-row">
-              <span className="capturing-pill">
-                <span className="pulse" />
-                <span className="en-only">CAPTURING</span>
-                <span className="jp" style={{ marginLeft: 4 }}>記録中</span>
+              <span
+                className="capturing-pill"
+                style={{ cursor: "pointer" }}
+                onClick={async () => {
+                  try {
+                    if (captureActive) {
+                      await api.pauseCapture();
+                      setCaptureActive(false);
+                    } else {
+                      await api.resumeCapture();
+                      setCaptureActive(true);
+                    }
+                  } catch {}
+                }}
+              >
+                {captureActive ? (
+                  <>
+                    <span className="pulse" />
+                    <span className="en-only">CAPTURING</span>
+                    <span className="jp" style={{ marginLeft: 4 }}>記録中</span>
+                  </>
+                ) : (
+                  <>
+                    <span style={{ width: 6, height: 6, borderRadius: "50%", background: "var(--text-dim)" }} />
+                    <span className="en-only" style={{ color: "var(--text-dim)" }}>PAUSED</span>
+                    <span className="jp" style={{ marginLeft: 4, color: "var(--text-dim)" }}>停止中</span>
+                  </>
+                )}
               </span>
             </div>
             <div ref={userBtnRef} className="user-row user-pill" onClick={openUser}>
@@ -259,21 +285,27 @@ export default function App() {
                   <span style={{ flex: 1 }} />
                   <span className="kbd-mini">⌘,</span>
                 </div>
-                <div className="user-float-row">
-                  <Icon name="arrowUpRight" size={13} /><span className="en-only">Upgrade Plan</span><span className="jp">昇格</span>
+                <div className="user-float-row" onClick={() => { navigate("/integrations"); setUserOpen(false); }}>
+                  <Icon name="plug" size={13} /><span className="en-only">Integrations</span><span className="jp">接続</span>
                 </div>
-                <div className="user-float-row">
-                  <Icon name="download" size={13} /><span className="en-only">Download Mobile App</span><span className="jp">携帯</span>
-                </div>
-              </div>
-              <div className="user-float-section" style={{ borderTop: "1px solid var(--border)" }}>
-                <div className="user-float-row gold">
-                  <Icon name="gift" size={13} /><span className="en-only">Get 2 Months Free</span><span className="jp">贈</span>
+                <div className="user-float-row" onClick={async () => {
+                  try { await api.exportBrain(); } catch {}
+                  setUserOpen(false);
+                }}>
+                  <Icon name="download" size={13} /><span className="en-only">Export Data</span><span className="jp">書出</span>
                 </div>
               </div>
               <div className="user-float-section" style={{ borderTop: "1px solid var(--border)" }}>
-                <div className="user-float-row" style={{ color: "var(--text-mute)" }}>
-                  <Icon name="logout" size={13} /><span className="en-only">Logout</span><span className="jp">退出</span>
+                <div className="user-float-row gold" onClick={() => { navigate("/chat"); setUserOpen(false); }}>
+                  <Icon name="chat" size={13} /><span className="en-only">Ask Memory</span><span className="jp">対話</span>
+                </div>
+              </div>
+              <div className="user-float-section" style={{ borderTop: "1px solid var(--border)" }}>
+                <div className="user-float-row" style={{ color: "var(--text-mute)" }} onClick={() => {
+                  navigate("/onboarding");
+                  setUserOpen(false);
+                }}>
+                  <Icon name="logout" size={13} /><span className="en-only">Reset Onboarding</span><span className="jp">再設定</span>
                 </div>
               </div>
               <div className="user-float-profile">

@@ -15,15 +15,24 @@ export function Integrations() {
     }).catch(() => {});
   }, []);
 
-  const sync = async (service: string, cmd: string, params: Record<string, unknown>) => {
-    setSyncing(service);
-    setResults((r) => ({ ...r, [service]: "" }));
+  const syncService = async (serviceId: string) => {
+    const token = tokens[serviceId] ?? "";
+    if (!token) return;
+    setSyncing(serviceId);
+    setResults((r) => ({ ...r, [serviceId]: "" }));
     try {
-      const apiAny = api as unknown as Record<string, (p: Record<string, unknown>) => Promise<unknown>>;
-      const res = await apiAny[cmd]?.(params);
-      setResults((r) => ({ ...r, [service]: "✓ " + (JSON.stringify(res).slice(0, 120)) }));
+      let res: unknown;
+      switch (serviceId) {
+        case "slack":  res = await api.ingestSlack(token, "general"); break;
+        case "github": res = await api.ingestGitHub(token, "torutesu", "shogun-ai"); break;
+        case "notion": res = await api.ingestNotion(token); break;
+        case "linear": res = await api.ingestLinear(token); break;
+        case "gmail":  res = await api.ingestGmail({ client_id: "", client_secret: "", access_token: token, refresh_token: "" }); break;
+        case "gcal":   res = await api.ingestCalendar(token); break;
+      }
+      setResults((r) => ({ ...r, [serviceId]: "✓ " + (JSON.stringify(res).slice(0, 120)) }));
     } catch (err) {
-      setResults((r) => ({ ...r, [service]: `✗ ${err}` }));
+      setResults((r) => ({ ...r, [serviceId]: `✗ ${err}` }));
     }
     setSyncing(null);
   };
@@ -76,18 +85,7 @@ export function Integrations() {
                 onChange={(e) => setTokens({ ...tokens, [svc.id]: e.target.value })}
               />
               <button
-                onClick={() => {
-                  const token = tokens[svc.id] ?? "";
-                  if (!token) return;
-                  const cmds: Record<string, [string, Record<string, unknown>]> = {
-                    slack:  ["ingest_slack",  { token, channel_id: "general" }],
-                    github: ["ingest_github", { token, owner: "torutesu", repo: "shogun-ai" }],
-                    notion: ["ingest_notion", { token }],
-                    linear: ["ingest_linear", { api_key: token }],
-                  };
-                  const [cmd, params] = cmds[svc.id] ?? ["", {}];
-                  if (cmd) sync(svc.id, cmd, params);
-                }}
+                onClick={() => syncService(svc.id)}
                 disabled={syncing === svc.id || !tokens[svc.id]}
                 className="btn btn-sm btn-primary"
               >
