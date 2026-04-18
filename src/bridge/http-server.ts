@@ -69,6 +69,57 @@ function saveSettingsFile(dataDir: string, settings: AppSettings): void {
   writeFileSync(path, JSON.stringify(settings, null, 2), "utf-8");
 }
 
+// ─── Conversation persistence ──────────────────────────────────────
+interface ConversationMessage {
+  role: "user" | "assistant";
+  content: string;
+  citations?: { slug: string; title: string; snippet: string }[];
+  created_at: string;
+}
+
+interface Conversation {
+  id: string;
+  title: string;
+  model: string;
+  messages: ConversationMessage[];
+  topics: string[];
+  created_at: string;
+  updated_at: string;
+}
+
+function getConversationsPath(dataDir: string): string {
+  return join(dataDir, "shogun-conversations.json");
+}
+
+function loadConversations(dataDir: string): Conversation[] {
+  const path = getConversationsPath(dataDir);
+  try {
+    if (existsSync(path)) return JSON.parse(readFileSync(path, "utf-8")) as Conversation[];
+  } catch { /* fallback */ }
+  return [];
+}
+
+function saveConversations(dataDir: string, conversations: Conversation[]): void {
+  const path = getConversationsPath(dataDir);
+  if (!existsSync(dataDir)) mkdirSync(dataDir, { recursive: true });
+  writeFileSync(path, JSON.stringify(conversations, null, 2), "utf-8");
+}
+
+function extractTopics(text: string): string[] {
+  // Extract noun-like tokens (simple heuristic for Topics panel)
+  const stopwords = new Set(["the", "and", "for", "with", "from", "this", "that", "what", "when", "where", "how", "why", "who", "are", "was", "were", "have", "has", "had", "will", "would", "could", "should", "about", "your", "you", "they", "them", "their"]);
+  const words = text.toLowerCase().match(/[a-z]{4,}|[\u3040-\u30ff]{2,}|[\u4e00-\u9faf]{2,}/g) ?? [];
+  const freq = new Map<string, number>();
+  for (const w of words) {
+    if (stopwords.has(w)) continue;
+    freq.set(w, (freq.get(w) ?? 0) + 1);
+  }
+  return Array.from(freq.entries())
+    .sort((a, b) => b[1] - a[1])
+    .slice(0, 5)
+    .map(([w]) => w);
+}
+
 // ─── Capture state ─────────────────────────────────────────────────
 let captureActive = true;
 
@@ -201,11 +252,79 @@ async function dispatch(
     case "/api/chat": {
       const message = String(params.message ?? "");
       if (!message) throw new Error("message required");
+      const conversationId = params.conversation_id as string | undefined;
       const router = brain.getLLMRouter();
       if (!router) throw new Error("No LLM configured");
       const { ChatEngine: CE } = await import("../chat/engine.js");
-      if (!chatEngine) chatEngine = new CE(brain, router);
-      return chatEngine.chat(message);
+
+      const convos = loadConversations(dataDir);
+      let convo: Conversation | undefined = conversationId ? convos.find((c) => c.id === conversationId) : undefined;
+      if (!convo) {
+        convo = {
+          id: `c-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+          title: message.slice(0, 60),
+          model: "sonnet",
+          messages: [],
+          topics: [],
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        };
+        convos.unshift(convo);
+      }
+
+      // Fresh engine per conversation, seed with prior history
+      const engine = new CE(brain, router);
+      for (const m of convo.messages) {
+        (engine as unknown as { history: unknown[] }).history.push({
+          role: m.role, content: m.content, timestamp: new Date(m.created_at),
+        });
+      }
+      const response = await engine.chat(message);
+
+      convo.messages.push({ role: "user", content: message, created_at: new Date().toISOString() });
+      convo.messages.push({
+        role: "assistant",
+        content: response.content,
+        citations: response.citations,
+        created_at: new Date().toISOString(),
+      });
+      convo.updated_at = new Date().toISOString();
+      const allText = convo.messages.map((m) => m.content).join(" ");
+      convo.topics = extractTopics(allText);
+      saveConversations(dataDir, convos);
+
+      return {
+        conversation_id: convo.id,
+        conversation_title: convo.title,
+        content: response.content,
+        citations: response.citations,
+        topics: convo.topics,
+      };
+    }
+
+    case "/api/conversations":
+      return loadConversations(dataDir).map((c) => ({
+        id: c.id,
+        title: c.title,
+        model: c.model,
+        message_count: c.messages.length,
+        topics: c.topics,
+        created_at: c.created_at,
+        updated_at: c.updated_at,
+      }));
+
+    case "/api/conversation": {
+      const id = String(params.id ?? "");
+      const convo = loadConversations(dataDir).find((c) => c.id === id);
+      if (!convo) throw new Error(`Conversation not found: ${id}`);
+      return convo;
+    }
+
+    case "/api/conversation/delete": {
+      const id = String(params.id ?? "");
+      const convos = loadConversations(dataDir).filter((c) => c.id !== id);
+      saveConversations(dataDir, convos);
+      return { deleted: true };
     }
 
     case "/api/capture": {

@@ -98,6 +98,10 @@ const CMD_TO_PATH: Record<string, { method: string; path: string }> = {
   import_brain:          { method: "POST", path: "/api/import" },
   // Briefing
   generate_briefing:     { method: "POST", path: "/api/briefing" },
+  // Conversations
+  list_conversations:    { method: "GET",  path: "/api/conversations" },
+  get_conversation:      { method: "POST", path: "/api/conversation" },
+  delete_conversation:   { method: "POST", path: "/api/conversation/delete" },
 };
 
 async function invoke<T>(cmd: string, args?: Record<string, unknown>): Promise<T> {
@@ -171,7 +175,26 @@ function getMockResponse<T>(cmd: string, _args?: Record<string, unknown>): T {
     run_dream_cycle: { synced: 3, skipped: 39, health: { embed_coverage: 0.82 } },
     export_brain: { version: 1, pages: [], links: [] },
     import_brain: { imported: 0, skipped: 0, links_created: 0 },
-    chat: { content: "Based on your memory, here is what I found...", citations: [{ slug: "people/demo-user", title: "Demo User", snippet: "A demo user for testing." }] },
+    chat: {
+      conversation_id: "c-demo",
+      conversation_title: "Demo conversation",
+      content: "Based on your memory, here is what I found...",
+      citations: [{ slug: "people/demo-user", title: "Demo User", snippet: "A demo user for testing." }],
+      topics: ["demo", "memory"],
+    },
+    list_conversations: [
+      { id: "c-demo-1", title: "Revenue-cat pricing tiers", model: "sonnet", message_count: 42, topics: ["pricing", "revenue-cat", "shogun"], created_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      { id: "c-demo-2", title: "Morning brief summary", model: "sonnet", message_count: 8, topics: ["brief", "summary"], created_at: new Date(Date.now() - 86400000).toISOString(), updated_at: new Date(Date.now() - 86400000).toISOString() },
+    ],
+    get_conversation: {
+      id: "c-demo-1", title: "Revenue-cat pricing tiers", model: "sonnet",
+      messages: [
+        { role: "user", content: "What is SHOGUN?", created_at: new Date().toISOString() },
+        { role: "assistant", content: "SHOGUN is a local-first AI memory system.", created_at: new Date().toISOString() },
+      ],
+      topics: ["demo"], created_at: new Date().toISOString(), updated_at: new Date().toISOString(),
+    },
+    delete_conversation: { deleted: true },
     load_settings: {
       openai_api_key: null,
       anthropic_api_key: null,
@@ -240,7 +263,38 @@ export const api = {
     invoke<PageListItem[]>("list_pages", options ?? {}),
   getHealth: () => invoke<HealthReport>("get_health"),
   runDreamCycle: () => invoke<unknown>("run_dream_cycle"),
-  chat: (message: string) => invoke<unknown>("chat", { message }),
+  chat: (message: string, conversationId?: string) =>
+    invoke<{
+      conversation_id: string;
+      conversation_title: string;
+      content: string;
+      citations?: { slug: string; title: string; snippet: string }[];
+      topics?: string[];
+    }>("chat", { message, conversation_id: conversationId }),
+  listConversations: () => invoke<Array<{
+    id: string;
+    title: string;
+    model: string;
+    message_count: number;
+    topics: string[];
+    created_at: string;
+    updated_at: string;
+  }>>("list_conversations"),
+  getConversation: (id: string) => invoke<{
+    id: string;
+    title: string;
+    model: string;
+    messages: Array<{
+      role: "user" | "assistant";
+      content: string;
+      citations?: { slug: string; title: string; snippet: string }[];
+      created_at: string;
+    }>;
+    topics: string[];
+    created_at: string;
+    updated_at: string;
+  }>("get_conversation", { id }),
+  deleteConversation: (id: string) => invoke<{ deleted: boolean }>("delete_conversation", { id }),
 
   // Timeline
   getTimelineRange: (startDate: string, endDate: string, limit?: number) =>
