@@ -42,6 +42,7 @@ export default function App() {
   const [favorited, setFavorited] = useState(false);
   const [captureActive, setCaptureActive] = useState(true);
   const [stats, setStats] = useState<{ total_pages?: number }>({});
+  const [chatHistory, setChatHistory] = useState<Array<{ id: string; title: string; updated_at: string }>>([]);
   const sysBtnRef = useRef<HTMLDivElement>(null);
   const userBtnRef = useRef<HTMLDivElement>(null);
   const [sysAnchor, setSysAnchor] = useState({ left: 0, bottom: 0 });
@@ -55,6 +56,7 @@ export default function App() {
     }).catch(() => setReady(true));
     api.getBrainStats().then(setStats).catch(() => {});
     api.getCaptureStatus().then((s) => setCaptureActive(s.active)).catch(() => {});
+    api.listConversations().then((c) => setChatHistory(c.slice(0, 8))).catch(() => {});
   }, [navigate]);
 
   useEffect(() => {
@@ -158,16 +160,45 @@ export default function App() {
                 <span className="jp">{sec.jp}</span>
               </div>
               {NAV.filter((n) => n.section === sec.id).map((n) => (
-                <div
-                  key={n.id}
-                  className={"nav-item " + (activeId === n.id ? "active" : "")}
-                  onClick={() => navigate(ROUTES[n.id] || "/")}
-                >
-                  <Icon name={n.icon} size={16} />
-                  <span className="nav-label en-only">{n.label}</span>
-                  {n.star && <span className="gold" style={{ fontSize: 8, marginLeft: -4 }}>★</span>}
-                  <span className="jp">{n.jp}</span>
-                  {count(n.id) && <span className="count">{count(n.id)}</span>}
+                <div key={n.id}>
+                  <div
+                    className={"nav-item " + (activeId === n.id ? "active" : "")}
+                    onClick={() => navigate(ROUTES[n.id] || "/")}
+                  >
+                    <Icon name={n.icon} size={16} />
+                    <span className="nav-label en-only">{n.label}</span>
+                    {n.star && <span className="gold" style={{ fontSize: 8, marginLeft: -4 }}>★</span>}
+                    <span className="jp">{n.jp}</span>
+                    {count(n.id) && <span className="count">{count(n.id)}</span>}
+                  </div>
+                  {n.id === "chat" && activeId === "chat" && (
+                    <div className="chat-subnav">
+                      <button
+                        className="btn btn-sm btn-secondary"
+                        style={{ width: "calc(100% - 14px)", margin: "6px 7px 10px", justifyContent: "flex-start" }}
+                        onClick={() => navigate("/chat")}
+                      >
+                        <Icon name="plus" size={12} />New conversation
+                      </button>
+                      {chatHistory.length > 0 && (
+                        <>
+                          <div className="chat-subgroup t-mono">
+                            <span className="en-only">RECENT</span>
+                            <span className="jp" style={{ marginLeft: 6 }}>最近</span>
+                          </div>
+                          {chatHistory.map((c) => (
+                            <div key={c.id} className="chat-sub-item" title={c.title}>
+                              <span className="dot" />
+                              <span className="chat-sub-title">{c.title}</span>
+                              <span className="t-mono chat-sub-time">
+                                {new Date(c.updated_at).toTimeString().slice(0, 5)}
+                              </span>
+                            </div>
+                          ))}
+                        </>
+                      )}
+                    </div>
+                  )}
                 </div>
               ))}
             </div>
