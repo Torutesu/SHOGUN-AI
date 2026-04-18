@@ -1,4 +1,6 @@
 mod commands;
+mod memory_store;
+mod paths;
 mod settings_store;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]

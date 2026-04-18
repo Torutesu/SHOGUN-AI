@@ -1,23 +1,12 @@
 //! Local JSON settings under the OS app data directory (via `directories`).
 
-use directories::ProjectDirs;
+use crate::paths;
 use serde_json::{json, Map, Value};
 use std::fs;
 use std::path::PathBuf;
 
-const QUALIFIER: &str = "ai";
-const ORG: &str = "Shogun";
-const APP: &str = "ShogunAI3";
-
-fn data_dir() -> Result<PathBuf, String> {
-  let dirs = ProjectDirs::from(QUALIFIER, ORG, APP).ok_or_else(|| "could not resolve app data directory".to_string())?;
-  let dir = dirs.data_dir().to_path_buf();
-  fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-  Ok(dir)
-}
-
 fn settings_path() -> Result<PathBuf, String> {
-  Ok(data_dir()?.join("settings.json"))
+  Ok(paths::app_data_dir()?.join("settings.json"))
 }
 
 fn empty_doc() -> Value {

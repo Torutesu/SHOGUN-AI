@@ -126,26 +126,47 @@ function PaneGeneral() {
 }
 
 function PaneSystem() {
+  const { run } = useRuntimeActions();
+  const { sections } = React.useContext(SettingsHydrationContext);
   const [startup, setStartup] = useStateS(true);
   const [notif, setNotif] = useStateS(true);
   const [sound, setSound] = useStateS(false);
+  const [timeFormat, setTimeFormat] = useStateS('24-hour');
+  const [showAppIn, setShowAppIn] = useStateS('Dock and Menu Bar');
+  const persist = (patch) => run('settings.save', { section:'system', startup, notif, sound, timeFormat, showAppIn, ...patch }, { silentError:true });
+  React.useEffect(() => {
+    const s = sections.system;
+    if (!s || typeof s !== 'object') return;
+    if (typeof s.startup === 'boolean') setStartup(s.startup);
+    if (typeof s.notif === 'boolean') setNotif(s.notif);
+    if (typeof s.sound === 'boolean') setSound(s.sound);
+    if (s.timeFormat != null) setTimeFormat(String(s.timeFormat));
+    if (s.showAppIn != null) setShowAppIn(String(s.showAppIn));
+  }, [sections]);
   return (
     <Pane title="System" jp="系統">
       <div className="s-card">
         <Row title="Launch SHOGUN on startup" desc="Automatically start SHOGUN when you log in to your computer">
-          <Toggle on={startup} onClick={()=>setStartup(!startup)}/>
+          <Toggle on={startup} onClick={()=>{ const next = !startup; setStartup(next); persist({ startup: next }); }}/>
         </Row>
         <Row title="Notifications" desc="Show SHOGUN notifications">
-          <Toggle on={notif} onClick={()=>setNotif(!notif)}/>
+          <Toggle on={notif} onClick={()=>{ const next = !notif; setNotif(next); persist({ notif: next }); }}/>
         </Row>
         <Row title="Notification Sound" desc="Play a sound for notifications like meeting reminders and more">
-          <Toggle on={sound} onClick={()=>setSound(!sound)}/>
+          <Toggle on={sound} onClick={()=>{ const next = !sound; setSound(next); persist({ sound: next }); }}/>
         </Row>
         <Row title="Time Format" desc="How times are displayed throughout the app">
-          <select className="s-select"><option>24-hour</option><option>12-hour</option></select>
+          <select className="s-select" value={timeFormat} onChange={(e)=>{ const v = e.target.value; setTimeFormat(v); run('settings.save', { section:'system', startup, notif, sound, timeFormat: v, showAppIn }, { silentError:true }); }}>
+            <option value="24-hour">24-hour</option>
+            <option value="12-hour">12-hour</option>
+          </select>
         </Row>
         <Row title="Show App In" desc="Control the visibility of the app when closed" last>
-          <select className="s-select"><option>Dock and Menu Bar</option><option>Menu Bar only</option><option>Dock only</option></select>
+          <select className="s-select" value={showAppIn} onChange={(e)=>{ const v = e.target.value; setShowAppIn(v); run('settings.save', { section:'system', startup, notif, sound, timeFormat, showAppIn: v }, { silentError:true }); }}>
+            <option value="Dock and Menu Bar">Dock and Menu Bar</option>
+            <option value="Menu Bar only">Menu Bar only</option>
+            <option value="Dock only">Dock only</option>
+          </select>
         </Row>
       </div>
     </Pane>
@@ -153,15 +174,26 @@ function PaneSystem() {
 }
 
 function PaneAppearance() {
+  const { run } = useRuntimeActions();
+  const { sections } = React.useContext(SettingsHydrationContext);
   const [mode, setMode] = useStateS('dark');
   const [wide, setWide] = useStateS(false);
   const [wrap, setWrap] = useStateS(true);
+  const [fontSize, setFontSize] = useStateS('Normal');
+  React.useEffect(() => {
+    const a = sections.appearance;
+    if (!a || typeof a !== 'object') return;
+    if (a.colorMode != null) setMode(String(a.colorMode));
+    if (typeof a.extraWideChat === 'boolean') setWide(a.extraWideChat);
+    if (typeof a.codeBlockWrap === 'boolean') setWrap(a.codeBlockWrap);
+    if (a.fontSize != null) setFontSize(String(a.fontSize));
+  }, [sections]);
   return (
     <Pane title="Appearance" jp="外観">
       <div className="s-field-label" style={{marginBottom:10}}>Color Mode</div>
       <div style={{display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:14, marginBottom:24}}>
         {[['light','Light'],['dark','Dark'],['auto','Match System']].map(([k,l])=>(
-          <div key={k} onClick={()=>setMode(k)} className={'s-color-card '+(mode===k?'active':'')}>
+          <div key={k} onClick={()=>{ setMode(k); run('settings.save', { section:'appearance', colorMode: k, extraWideChat: wide, codeBlockWrap: wrap, fontSize }, { silentError:true }); }} className={'s-color-card '+(mode===k?'active':'')}>
             <div className="s-color-preview" data-mode={k}>
               <div className="s-color-bar"><span/><span/><span/></div>
               <div className="s-color-title">What's on your mind?</div>
@@ -173,13 +205,17 @@ function PaneAppearance() {
       </div>
       <div className="s-card">
         <Row title="Extra Wide Chat" desc="Choose whether to make the chat extra wide">
-          <Toggle on={wide} onClick={()=>setWide(!wide)}/>
+          <Toggle on={wide} onClick={()=>{ const next = !wide; setWide(next); run('settings.save', { section:'appearance', colorMode: mode, extraWideChat: next, codeBlockWrap: wrap, fontSize }, { silentError:true }); }}/>
         </Row>
         <Row title="Font Size" desc="Adjust the size of text across the app">
-          <select className="s-select"><option>Normal</option><option>Compact</option><option>Comfortable</option></select>
+          <select className="s-select" value={fontSize} onChange={(e)=>{ const v = e.target.value; setFontSize(v); run('settings.save', { section:'appearance', colorMode: mode, extraWideChat: wide, codeBlockWrap: wrap, fontSize: v }, { silentError:true }); }}>
+            <option value="Normal">Normal</option>
+            <option value="Compact">Compact</option>
+            <option value="Comfortable">Comfortable</option>
+          </select>
         </Row>
         <Row title="Code Block Wrapping" desc="Enable or disable code block wrapping" last>
-          <Toggle on={wrap} onClick={()=>setWrap(!wrap)}/>
+          <Toggle on={wrap} onClick={()=>{ const next = !wrap; setWrap(next); run('settings.save', { section:'appearance', colorMode: mode, extraWideChat: wide, codeBlockWrap: next, fontSize }, { silentError:true }); }}/>
         </Row>
       </div>
     </Pane>

@@ -1,6 +1,7 @@
 //! IPC handlers aligned with `hifi/lib/shogun-api.js` invoke names.
 //! Stubs return JSON the Hi-Fi UI can consume; replace with PGLite / real pipelines later.
 
+use crate::memory_store;
 use crate::settings_store;
 use serde_json::{json, Value};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -14,17 +15,12 @@ fn ts() -> u64 {
 
 #[tauri::command]
 pub fn shogun_memory_search(payload: Value) -> Result<Value, String> {
-  Ok(json!({
-    "hits": [],
-    "total": 0,
-    "echo": payload,
-    "stub": true,
-  }))
+  memory_store::search(&payload)
 }
 
 #[tauri::command]
 pub fn shogun_memory_fetch(payload: Value) -> Result<Value, String> {
-  Ok(json!({ "items": [], "echo": payload, "stub": true }))
+  memory_store::fetch(&payload)
 }
 
 #[tauri::command]
